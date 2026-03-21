@@ -1,0 +1,287 @@
+  console.error
+    tenantMiddleware error: CastError: Cast to ObjectId failed for value "tenantb" (type string) at path "_id" for model "Tenant"
+        at SchemaObjectId.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schema\objectId.js:253:11)
+        at SchemaObjectId.SchemaType.applySetters (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1287:12)
+        at SchemaObjectId.SchemaType.castForQuery (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1713:17)
+        at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:386:32)
+        at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:76:20)
+        at model.Query.Query.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:5127:12)
+        at model.Query.Query._castConditions (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2376:10)
+        at model.Query._findOne (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2716:8)
+        at model.Query.exec (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:4726:80)
+        at processTicksAndRejections (node:internal/process/task_queues:103:5)
+        at tenantMiddleware (C:\xampp\htdocs\money\server\src\middlewares\tenantMiddleware.js:14:20) {
+      stringValue: '"tenantb"',
+      messageFormat: undefined,
+      kind: 'ObjectId',
+      value: 'tenantb',
+      path: '_id',
+      reason: BSONError: input must be a 24 character hex string, 12 byte Uint8Array, or an integer
+          at new ObjectId (C:\xampp\htdocs\money\server\node_modules\bson\src\objectid.ts:113:15)
+          at castObjectId (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast\objectid.js:25:12)
+          at SchemaObjectId.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schema\objectId.js:251:12)
+          at SchemaObjectId.SchemaType.applySetters (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1287:12)
+          at SchemaObjectId.SchemaType.castForQuery (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1713:17)
+          at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:386:32)
+          at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:76:20)
+          at model.Query.Query.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:5127:12)
+          at model.Query.Query._castConditions (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2376:10)
+          at model.Query._findOne (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2716:8)
+          at model.Query.exec (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:4726:80)
+          at processTicksAndRejections (node:internal/process/task_queues:103:5)
+          at tenantMiddleware (C:\xampp\htdocs\money\server\src\middlewares\tenantMiddleware.js:14:20),
+      valueType: 'string'
+    }
+
+    [0m [90m 28 |[39m     })[33m;[39m
+     [90m 29 |[39m   } [36mcatch[39m (err) {
+    [31m[1m>[22m[39m[90m 30 |[39m     console[33m.[39merror([32m'tenantMiddleware error:'[39m[33m,[39m err)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 31 |[39m     res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ error[33m:[39m [32m'Internal Server Error'[39m })[33m;[39m
+     [90m 32 |[39m   }
+     [90m 33 |[39m }[33m;[39m[0m
+
+      at error (src/middlewares/tenantMiddleware.js:30:13)
+
+  console.error
+    tenantMiddleware error: CastError: Cast to ObjectId failed for value "tenantb" (type string) at path "_id" for model "Tenant"
+        at SchemaObjectId.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schema\objectId.js:253:11)
+        at SchemaObjectId.SchemaType.applySetters (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1287:12)
+        at SchemaObjectId.SchemaType.castForQuery (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1713:17)
+        at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:386:32)
+        at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:76:20)
+        at model.Query.Query.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:5127:12)
+        at model.Query.Query._castConditions (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2376:10)
+        at model.Query._findOne (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2716:8)
+        at model.Query.exec (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:4726:80)
+        at processTicksAndRejections (node:internal/process/task_queues:103:5)
+        at tenantMiddleware (C:\xampp\htdocs\money\server\src\middlewares\tenantMiddleware.js:14:20) {
+      stringValue: '"tenantb"',
+      messageFormat: undefined,
+      kind: 'ObjectId',
+      value: 'tenantb',
+      path: '_id',
+      reason: BSONError: input must be a 24 character hex string, 12 byte Uint8Array, or an integer
+          at new ObjectId (C:\xampp\htdocs\money\server\node_modules\bson\src\objectid.ts:113:15)
+          at castObjectId (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast\objectid.js:25:12)
+          at SchemaObjectId.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schema\objectId.js:251:12)
+          at SchemaObjectId.SchemaType.applySetters (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1287:12)
+          at SchemaObjectId.SchemaType.castForQuery (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1713:17)
+          at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:386:32)
+          at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:76:20)
+          at model.Query.Query.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:5127:12)
+          at model.Query.Query._castConditions (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2376:10)
+          at model.Query._findOne (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2716:8)
+          at model.Query.exec (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:4726:80)
+          at processTicksAndRejections (node:internal/process/task_queues:103:5)
+          at tenantMiddleware (C:\xampp\htdocs\money\server\src\middlewares\tenantMiddleware.js:14:20),
+      valueType: 'string'
+    }
+
+    [0m [90m 28 |[39m     })[33m;[39m
+     [90m 29 |[39m   } [36mcatch[39m (err) {
+    [31m[1m>[22m[39m[90m 30 |[39m     console[33m.[39merror([32m'tenantMiddleware error:'[39m[33m,[39m err)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 31 |[39m     res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ error[33m:[39m [32m'Internal Server Error'[39m })[33m;[39m
+     [90m 32 |[39m   }
+     [90m 33 |[39m }[33m;[39m[0m
+
+      at error (src/middlewares/tenantMiddleware.js:30:13)
+
+  console.error
+    tenantMiddleware error: CastError: Cast to ObjectId failed for value "tenanta" (type string) at path "_id" for model "Tenant"
+        at SchemaObjectId.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schema\objectId.js:253:11)
+        at SchemaObjectId.SchemaType.applySetters (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1287:12)
+        at SchemaObjectId.SchemaType.castForQuery (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1713:17)
+        at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:386:32)
+        at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:76:20)
+        at model.Query.Query.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:5127:12)
+        at model.Query.Query._castConditions (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2376:10)
+        at model.Query._findOne (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2716:8)
+        at model.Query.exec (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:4726:80)
+        at processTicksAndRejections (node:internal/process/task_queues:103:5)
+        at tenantMiddleware (C:\xampp\htdocs\money\server\src\middlewares\tenantMiddleware.js:14:20) {
+      stringValue: '"tenanta"',
+      messageFormat: undefined,
+      kind: 'ObjectId',
+      value: 'tenanta',
+      path: '_id',
+      reason: BSONError: input must be a 24 character hex string, 12 byte Uint8Array, or an integer
+          at new ObjectId (C:\xampp\htdocs\money\server\node_modules\bson\src\objectid.ts:113:15)
+          at castObjectId (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast\objectid.js:25:12)
+          at SchemaObjectId.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schema\objectId.js:251:12)
+          at SchemaObjectId.SchemaType.applySetters (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1287:12)
+          at SchemaObjectId.SchemaType.castForQuery (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1713:17)
+          at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:386:32)
+          at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:76:20)
+          at model.Query.Query.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:5127:12)
+          at model.Query.Query._castConditions (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2376:10)
+          at model.Query._findOne (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2716:8)
+          at model.Query.exec (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:4726:80)
+          at processTicksAndRejections (node:internal/process/task_queues:103:5)
+          at tenantMiddleware (C:\xampp\htdocs\money\server\src\middlewares\tenantMiddleware.js:14:20),
+      valueType: 'string'
+    }
+
+    [0m [90m 28 |[39m     })[33m;[39m
+     [90m 29 |[39m   } [36mcatch[39m (err) {
+    [31m[1m>[22m[39m[90m 30 |[39m     console[33m.[39merror([32m'tenantMiddleware error:'[39m[33m,[39m err)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 31 |[39m     res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ error[33m:[39m [32m'Internal Server Error'[39m })[33m;[39m
+     [90m 32 |[39m   }
+     [90m 33 |[39m }[33m;[39m[0m
+
+      at error (src/middlewares/tenantMiddleware.js:30:13)
+
+  console.error
+    tenantMiddleware error: CastError: Cast to ObjectId failed for value "tenanta" (type string) at path "_id" for model "Tenant"
+        at SchemaObjectId.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schema\objectId.js:253:11)
+        at SchemaObjectId.SchemaType.applySetters (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1287:12)
+        at SchemaObjectId.SchemaType.castForQuery (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1713:17)
+        at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:386:32)
+        at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:76:20)
+        at model.Query.Query.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:5127:12)
+        at model.Query.Query._castConditions (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2376:10)
+        at model.Query._findOne (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2716:8)
+        at model.Query.exec (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:4726:80)
+        at processTicksAndRejections (node:internal/process/task_queues:103:5)
+        at tenantMiddleware (C:\xampp\htdocs\money\server\src\middlewares\tenantMiddleware.js:14:20) {
+      stringValue: '"tenanta"',
+      messageFormat: undefined,
+      kind: 'ObjectId',
+      value: 'tenanta',
+      path: '_id',
+      reason: BSONError: input must be a 24 character hex string, 12 byte Uint8Array, or an integer
+          at new ObjectId (C:\xampp\htdocs\money\server\node_modules\bson\src\objectid.ts:113:15)
+          at castObjectId (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast\objectid.js:25:12)
+          at SchemaObjectId.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schema\objectId.js:251:12)
+          at SchemaObjectId.SchemaType.applySetters (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1287:12)
+          at SchemaObjectId.SchemaType.castForQuery (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1713:17)
+          at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:386:32)
+          at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:76:20)
+          at model.Query.Query.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:5127:12)
+          at model.Query.Query._castConditions (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2376:10)
+          at model.Query._findOne (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2716:8)
+          at model.Query.exec (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:4726:80)
+          at processTicksAndRejections (node:internal/process/task_queues:103:5)
+          at tenantMiddleware (C:\xampp\htdocs\money\server\src\middlewares\tenantMiddleware.js:14:20),
+      valueType: 'string'
+    }
+
+    [0m [90m 28 |[39m     })[33m;[39m
+     [90m 29 |[39m   } [36mcatch[39m (err) {
+    [31m[1m>[22m[39m[90m 30 |[39m     console[33m.[39merror([32m'tenantMiddleware error:'[39m[33m,[39m err)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 31 |[39m     res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ error[33m:[39m [32m'Internal Server Error'[39m })[33m;[39m
+     [90m 32 |[39m   }
+     [90m 33 |[39m }[33m;[39m[0m
+
+      at error (src/middlewares/tenantMiddleware.js:30:13)
+
+  console.error
+    tenantMiddleware error: CastError: Cast to ObjectId failed for value "tenanta" (type string) at path "_id" for model "Tenant"
+        at SchemaObjectId.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schema\objectId.js:253:11)
+        at SchemaObjectId.SchemaType.applySetters (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1287:12)
+        at SchemaObjectId.SchemaType.castForQuery (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1713:17)
+        at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:386:32)
+        at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:76:20)
+        at model.Query.Query.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:5127:12)
+        at model.Query.Query._castConditions (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2376:10)
+        at model.Query._findOne (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2716:8)
+        at model.Query.exec (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:4726:80)
+        at processTicksAndRejections (node:internal/process/task_queues:103:5)
+        at tenantMiddleware (C:\xampp\htdocs\money\server\src\middlewares\tenantMiddleware.js:14:20) {
+      stringValue: '"tenanta"',
+      messageFormat: undefined,
+      kind: 'ObjectId',
+      value: 'tenanta',
+      path: '_id',
+      reason: BSONError: input must be a 24 character hex string, 12 byte Uint8Array, or an integer
+          at new ObjectId (C:\xampp\htdocs\money\server\node_modules\bson\src\objectid.ts:113:15)
+          at castObjectId (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast\objectid.js:25:12)
+          at SchemaObjectId.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schema\objectId.js:251:12)
+          at SchemaObjectId.SchemaType.applySetters (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1287:12)
+          at SchemaObjectId.SchemaType.castForQuery (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\schemaType.js:1713:17)
+          at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:386:32)
+          at cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\cast.js:76:20)
+          at model.Query.Query.cast (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:5127:12)
+          at model.Query.Query._castConditions (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2376:10)
+          at model.Query._findOne (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:2716:8)
+          at model.Query.exec (C:\xampp\htdocs\money\server\node_modules\mongoose\lib\query.js:4726:80)
+          at processTicksAndRejections (node:internal/process/task_queues:103:5)
+          at tenantMiddleware (C:\xampp\htdocs\money\server\src\middlewares\tenantMiddleware.js:14:20),
+      valueType: 'string'
+    }
+
+    [0m [90m 28 |[39m     })[33m;[39m
+     [90m 29 |[39m   } [36mcatch[39m (err) {
+    [31m[1m>[22m[39m[90m 30 |[39m     console[33m.[39merror([32m'tenantMiddleware error:'[39m[33m,[39m err)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 31 |[39m     res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ error[33m:[39m [32m'Internal Server Error'[39m })[33m;[39m
+     [90m 32 |[39m   }
+     [90m 33 |[39m }[33m;[39m[0m
+
+      at error (src/middlewares/tenantMiddleware.js:30:13)
+
+FAIL ./test.test.js
+  Anti-Gravity Protocol Validation
+    × Tenant Isolation Assurance (Cross-Pollination Check) (56 ms)
+    × RBAC Matrix and Entitlement Verification (16 ms)
+    × Transactional Integrity Evaluation (23 ms)
+
+  ● Anti-Gravity Protocol Validation › Tenant Isolation Assurance (Cross-Pollination Check)
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 500
+
+    [0m [90m 56 |[39m       [33m.[39m[36mset[39m([32m'x-user-id'[39m[33m,[39m userB[33m.[39m_id[33m.[39mtoString())[33m;[39m
+     [90m 57 |[39m       
+    [31m[1m>[22m[39m[90m 58 |[39m     expect(res[33m.[39mstatus)[33m.[39mtoBe([35m200[39m)[33m;[39m
+     [90m    |[39m                        [31m[1m^[22m[39m
+     [90m 59 |[39m     expect(res[33m.[39mbody[33m.[39mlength)[33m.[39mtoBe([35m5[39m)[33m;[39m [90m// Only sees 5 users, not 105![39m
+     [90m 60 |[39m     
+     [90m 61 |[39m     [90m// Prove it's not a general find by checking Tenant A as well just to be certain[39m[0m
+
+      at Object.toBe (test.test.js:58:24)
+
+  ● Anti-Gravity Protocol Validation › RBAC Matrix and Entitlement Verification
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 403
+    Received: 500
+
+    [0m [90m 83 |[39m       [33m.[39m[36mset[39m([32m'x-user-id'[39m[33m,[39m userB[33m.[39m_id[33m.[39mtoString())[33m;[39m
+     [90m 84 |[39m     
+    [31m[1m>[22m[39m[90m 85 |[39m     expect(resRbac[33m.[39mstatus)[33m.[39mtoBe([35m403[39m)[33m;[39m
+     [90m    |[39m                            [31m[1m^[22m[39m
+     [90m 86 |[39m     
+     [90m 87 |[39m     [90m// 2. Entitlement Check: Block free tier tenant (Tenant B) from accessing inventory module[39m
+     [90m 88 |[39m     [36mconst[39m resEntitlement [33m=[39m [36mawait[39m request(app)[0m
+
+      at Object.toBe (test.test.js:85:28)
+
+  ● Anti-Gravity Protocol Validation › Transactional Integrity Evaluation
+
+    expect(received).toBeGreaterThan(expected)
+
+    Expected: > 0
+    Received:   0
+
+    [0m [90m 134 |[39m     
+     [90m 135 |[39m     [90m// At least one must fail due to overdrawing the 14 days credit[39m
+    [31m[1m>[22m[39m[90m 136 |[39m     expect(failures[33m.[39mlength)[33m.[39mtoBeGreaterThan([35m0[39m)[33m;[39m
+     [90m     |[39m                             [31m[1m^[22m[39m
+     [90m 137 |[39m     
+     [90m 138 |[39m     [90m// DB state verification[39m
+     [90m 139 |[39m     [36mconst[39m employeeFinal [33m=[39m [36mawait[39m [33mEmployeeProfile[39m[33m.[39mfindById(employee[33m.[39m_id)[33m;[39m[0m
+
+      at Object.toBeGreaterThan (test.test.js:136:29)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 3 total
+Snapshots:   0 total
+Time:        3.033 s, estimated 4 s
+Ran all test suites.

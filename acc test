@@ -1,0 +1,11 @@
+Role	Email	Password	Workspace	What You See
+Super Admin	admin@acme.com	password123	acme	Everything — all sidebar items, all modules
+HR Manager	hr@acme.com	password123	acme	Employees, Attendance, Leaves, Payroll, Roles, Settings
+Employee	employee@acme.com	password123	acme	Attendance & Leaves only
+Viewer	viewer@acme.com	password123	acme	Payroll only (read-only)
+🏠 Starter Inc (Free Tier — no premium modules)
+Role	Email	Password	Workspace	What You See
+Admin	admin@starter.com	password123	starter	Employees, Attendance, Leaves, Roles, Settings — but NO Payroll (403)
+Basic User	user@starter.com	password123	starter	Attendance only
+
+ You (System Owner) admin owner@system.com password123
