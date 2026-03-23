@@ -7,12 +7,19 @@ const payslipSchema = new mongoose.Schema({
     month: { type: Number, required: true, min: 1, max: 12 },
     year: { type: Number, required: true },
   },
+  payPeriod: {
+    type: String,
+    enum: ['first_half', 'second_half', 'full_month'],
+    required: true,
+    default: 'full_month',
+  },
   basicSalary: { type: Number, required: true },
   allowances: {
     housing: { type: Number, default: 0 },
     transport: { type: Number, default: 0 },
     meal: { type: Number, default: 0 },
     holidayPay: { type: Number, default: 0 },
+    thirteenthMonthPay: { type: Number, default: 0 },
     other: { type: Number, default: 0 },
   },
   deductions: {
@@ -37,7 +44,10 @@ const payslipSchema = new mongoose.Schema({
   notes: { type: String },
 }, { timestamps: true });
 
-// Ensure one payslip per employee per period
-payslipSchema.index({ employeeId: 1, 'period.month': 1, 'period.year': 1, tenantId: 1 }, { unique: true });
+// Ensure one payslip per employee per period per pay period type
+payslipSchema.index(
+  { employeeId: 1, 'period.month': 1, 'period.year': 1, payPeriod: 1, tenantId: 1 },
+  { unique: true }
+);
 
 module.exports = mongoose.model('Payslip', payslipSchema);

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { TenantProvider } from './contexts/TenantContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import Sidebar from './components/layout/Sidebar';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -36,12 +37,14 @@ function ProtectedLayout() {
 
   return (
     <TenantProvider>
-      <div className="app-layout">
-        <Sidebar />
-        <main className="app-main">
-          <Outlet />
-        </main>
-      </div>
+      <NotificationProvider>
+        <div className="app-layout">
+          <Sidebar />
+          <main className="app-main">
+            <Outlet />
+          </main>
+        </div>
+      </NotificationProvider>
     </TenantProvider>
   );
 }

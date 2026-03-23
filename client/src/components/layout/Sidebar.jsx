@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
+import NotificationBell from '../shared/NotificationBell';
 
 const navigationConfig = [
   {
@@ -123,6 +124,8 @@ export default function Sidebar() {
             </span>
           </div>
         </div>
+        {/* Notification Bell */}
+        {!isSystemOwner && <NotificationBell />}
       </div>
 
       <nav className="sidebar-nav">

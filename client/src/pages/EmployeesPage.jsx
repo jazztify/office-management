@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 
+const STATUS_BADGE = {
+  training: { label: 'Training', className: 'badge-warning' },
+  probationary: { label: 'Probationary', className: 'badge-info' },
+  regular: { label: 'Regular', className: 'badge-success' },
+};
+
 export default function EmployeesPage() {
   const { hasPermission } = useAuth();
   const [employees, setEmployees] = useState([]);
@@ -13,6 +19,7 @@ export default function EmployeesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     userId: '', firstName: '', lastName: '', department: '', position: '', salary: '',
+    dateOfBirth: '', hireDate: '',
   });
 
   const canManage = hasPermission('manage_employees') || hasPermission('*');
@@ -46,23 +53,20 @@ export default function EmployeesPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        department: formData.department,
+        position: formData.position,
+        salary: Number(formData.salary) || 0,
+        dateOfBirth: formData.dateOfBirth || null,
+        hireDate: formData.hireDate || null,
+      };
+
       if (editingId) {
-        await api.patch(`/api/employees/${editingId}`, {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          department: formData.department,
-          position: formData.position,
-          salary: Number(formData.salary) || 0,
-        });
+        await api.patch(`/api/employees/${editingId}`, payload);
       } else {
-        await api.post('/api/employees', {
-          userId: formData.userId,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          department: formData.department,
-          position: formData.position,
-          salary: Number(formData.salary) || 0,
-        });
+        await api.post('/api/employees', { ...payload, userId: formData.userId });
       }
       resetForm();
       fetchEmployees();
@@ -80,6 +84,8 @@ export default function EmployeesPage() {
       department: emp.department || '',
       position: emp.position || '',
       salary: emp.salary || '',
+      dateOfBirth: emp.dateOfBirth ? new Date(emp.dateOfBirth).toISOString().split('T')[0] : '',
+      hireDate: emp.hireDate ? new Date(emp.hireDate).toISOString().split('T')[0] : '',
     });
     setShowForm(true);
   };
@@ -97,7 +103,7 @@ export default function EmployeesPage() {
   const resetForm = () => {
     setShowForm(false);
     setEditingId(null);
-    setFormData({ userId: '', firstName: '', lastName: '', department: '', position: '', salary: '' });
+    setFormData({ userId: '', firstName: '', lastName: '', department: '', position: '', salary: '', dateOfBirth: '', hireDate: '' });
   };
 
   const filteredEmployees = employees.filter((emp) => {
@@ -115,6 +121,11 @@ export default function EmployeesPage() {
   const availableUsers = users.filter(u =>
     !employees.some(emp => emp.userId?._id === u._id)
   );
+
+  const formatDate = (d) => {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
 
   if (isLoading) {
     return (
@@ -193,6 +204,15 @@ export default function EmployeesPage() {
               <label>Salary (₱)</label>
               <input type="number" placeholder="0.00" value={formData.salary} onChange={(e) => setFormData({ ...formData, salary: e.target.value })} />
             </div>
+            <div className="form-group">
+              <label>🎂 Date of Birth</label>
+              <input type="date" value={formData.dateOfBirth} onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>📅 Hire Date</label>
+              <input type="date" value={formData.hireDate} onChange={(e) => setFormData({ ...formData, hireDate: e.target.value })} />
+              <small className="form-hint">Training: 0-1mo → Probationary: 1-6mo → Regular: 6mo+</small>
+            </div>
           </div>
           <div className="form-actions">
             <button type="submit" className="btn-primary">{editingId ? 'Save Changes' : 'Add Employee'}</button>
@@ -210,8 +230,9 @@ export default function EmployeesPage() {
               <th>Department</th>
               <th>Position</th>
               <th>Salary</th>
-              <th>Vacation</th>
-              <th>Sick</th>
+              <th>Birthday</th>
+              <th>Hire Date</th>
+              <th>Emp. Status</th>
               <th>Status</th>
               {canManage && <th>Actions</th>}
             </tr>
@@ -219,47 +240,55 @@ export default function EmployeesPage() {
           <tbody>
             {filteredEmployees.length === 0 ? (
               <tr>
-                <td colSpan={canManage ? 9 : 8} className="empty-state">
+                <td colSpan={canManage ? 10 : 9} className="empty-state">
                   {searchTerm ? 'No employees match your search.' : 'No employees found in this workspace.'}
                 </td>
               </tr>
             ) : (
-              filteredEmployees.map((emp) => (
-                <tr key={emp._id}>
-                  <td className="cell-primary">
-                    <div className="employee-cell">
-                      <div className="emp-avatar">{emp.firstName?.[0]}{emp.lastName?.[0]}</div>
-                      <span>{emp.firstName} {emp.lastName}</span>
-                    </div>
-                  </td>
-                  <td>{emp.userId?.email || '—'}</td>
-                  <td><span className="badge badge-muted">{emp.department || 'Unassigned'}</span></td>
-                  <td>{emp.position || '—'}</td>
-                  <td className="cell-money">
-                    {emp.salary ? `₱${Number(emp.salary).toLocaleString()}` : '—'}
-                  </td>
-                  <td>{emp.leaveCredits?.vacation ?? '—'}</td>
-                  <td>{emp.leaveCredits?.sick ?? '—'}</td>
-                  <td>
-                    <span className={`badge ${emp.userId?.isActive !== false ? 'badge-success' : 'badge-danger'}`}>
-                      {emp.userId?.isActive !== false ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  {canManage && (
-                    <td>
-                      <div className="action-group">
-                        <button className="btn-sm btn-view" onClick={() => handleEdit(emp)}>Edit</button>
-                        <button
-                          className="btn-sm btn-danger"
-                          onClick={() => handleDelete(emp._id, `${emp.firstName} ${emp.lastName}`)}
-                        >
-                          Delete
-                        </button>
+              filteredEmployees.map((emp) => {
+                const statusInfo = STATUS_BADGE[emp.employmentStatus] || STATUS_BADGE.training;
+                return (
+                  <tr key={emp._id}>
+                    <td className="cell-primary">
+                      <div className="employee-cell">
+                        <div className="emp-avatar">{emp.firstName?.[0]}{emp.lastName?.[0]}</div>
+                        <span>{emp.firstName} {emp.lastName}</span>
                       </div>
                     </td>
-                  )}
-                </tr>
-              ))
+                    <td>{emp.userId?.email || '—'}</td>
+                    <td><span className="badge badge-muted">{emp.department || 'Unassigned'}</span></td>
+                    <td>{emp.position || '—'}</td>
+                    <td className="cell-money">
+                      {emp.salary ? `₱${Number(emp.salary).toLocaleString()}` : '—'}
+                    </td>
+                    <td>{emp.dateOfBirth ? formatDate(emp.dateOfBirth) : '—'}</td>
+                    <td>{emp.hireDate ? formatDate(emp.hireDate) : '—'}</td>
+                    <td>
+                      <span className={`badge ${statusInfo.className}`}>
+                        {statusInfo.label}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`badge ${emp.userId?.isActive !== false ? 'badge-success' : 'badge-danger'}`}>
+                        {emp.userId?.isActive !== false ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    {canManage && (
+                      <td>
+                        <div className="action-group">
+                          <button className="btn-sm btn-view" onClick={() => handleEdit(emp)}>Edit</button>
+                          <button
+                            className="btn-sm btn-danger"
+                            onClick={() => handleDelete(emp._id, `${emp.firstName} ${emp.lastName}`)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

@@ -26,6 +26,8 @@ const holidayRoutes = require('./src/routes/holidayRoutes');
 const settingsRoutes = require('./src/routes/settingsRoutes');
 const overtimeRoutes = require('./src/routes/overtimeRoutes');
 const shiftRoutes = require('./src/routes/shiftRoutes');
+const notificationRoutes = require('./src/routes/notificationRoutes');
+const earlyOutRoutes = require('./src/routes/earlyOutRoutes');
 
 const app = express();
 
@@ -95,6 +97,8 @@ app.use('/api/leaves', leaveRoutes);
 app.use('/api/roles', checkPermission('manage_roles'), roleRoutes);
 app.use('/api/settings', checkPermission('manage_settings'), settingsRoutes);
 app.use('/api/shifts', shiftRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/early-out', earlyOutRoutes);
 
 // ─── HR Modules ──────────────────────────────────────────────
 app.use('/api/payslips', checkPermission('view_payroll'), payslipRoutes);

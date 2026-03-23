@@ -1,6 +1,7 @@
 const express = require('express');
 const AttendanceLog = require('../models/AttendanceLog');
 const EmployeeProfile = require('../models/EmployeeProfile');
+const EarlyOutRequest = require('../models/EarlyOutRequest');
 const Tenant = require('../models/Tenant');
 
 const router = express.Router();
@@ -98,6 +99,9 @@ function computeMetrics(record, settings) {
  * POST /api/attendance/punch
  * Employee punches: clock-in, lunch-out, lunch-in, clock-out
  * Philippine Standard: 8AM → 12PM | Lunch 12-1PM | 1PM → 5PM
+ *
+ * EARLY OUT RULE: If it's before the scheduled end time (e.g. 5PM),
+ * employee must have an approved early-out or half-day request to clock out.
  */
 router.post('/punch', async (req, res) => {
   try {
@@ -120,6 +124,7 @@ router.post('/punch', async (req, res) => {
     // Get tenant settings for validation
     const tenant = await Tenant.findById(req.tenantId).lean();
     const settings = tenant?.settings || {};
+    const officeHours = settings?.officeHours || { start: '08:00', end: '17:00', lunchStart: '12:00', lunchEnd: '13:00' };
 
     // Find or create today's attendance record
     let record = await AttendanceLog.findOne({ employeeId: employee._id, date: today });
@@ -168,13 +173,41 @@ router.post('/punch', async (req, res) => {
         record.lunchIn = now;
         break;
 
-      case 'clock-out':
+      case 'clock-out': {
         if (!record.clockIn) {
           return res.status(400).json({ error: 'You must clock in first.' });
         }
         if (record.clockOut) {
           return res.status(400).json({ error: 'You have already clocked out today.' });
         }
+
+        // ─── EARLY OUT CHECK ───────────────────────────────
+        // If current time is before the scheduled end time, require approval
+        const expectedEnd = parseTime(officeHours.end);
+        const currentHours = now.getHours();
+        const currentMinutes = now.getMinutes();
+        const currentTotal = currentHours * 60 + currentMinutes;
+        const expectedEndTotal = expectedEnd.hours * 60 + expectedEnd.minutes;
+
+        // Check if HR/Admin (they can clock out anytime)
+        const isManager = req.user.permissions?.includes('manage_leaves') || req.user.permissions?.includes('*');
+
+        if (currentTotal < expectedEndTotal && !isManager) {
+          // Check if they have an approved early-out or half-day request
+          const approval = await EarlyOutRequest.findOne({
+            employeeId: employee._id,
+            date: today,
+            status: 'approved',
+          }).lean();
+
+          if (!approval) {
+            return res.status(403).json({
+              error: 'Early clock-out requires an approved early-out or half-day request. Please submit a request first.',
+              requiresApproval: true,
+            });
+          }
+        }
+
         // Auto-fill lunch if they didn't take one
         if (!record.lunchOut) {
           record.lunchOut = null;
@@ -182,6 +215,7 @@ router.post('/punch', async (req, res) => {
         }
         record.clockOut = now;
         break;
+      }
     }
 
     // Re-compute metrics after each punch
@@ -228,9 +262,17 @@ router.get('/my-today', async (req, res) => {
     // Get tenant settings
     const tenant = await Tenant.findById(req.tenantId).lean();
 
+    // Check for approved early-out
+    const earlyOutApproval = await EarlyOutRequest.findOne({
+      employeeId: employee._id,
+      date: today,
+      status: 'approved',
+    }).lean();
+
     res.json({
       record,
       settings: tenant?.settings || {},
+      earlyOutApproval: earlyOutApproval || null,
     });
   } catch (err) {
     console.error('GET /attendance/my-today Error:', err.message);

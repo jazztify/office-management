@@ -24,6 +24,7 @@ const HOLIDAY_TYPES = {
 export default function HolidaysPage() {
   const { hasPermission } = useAuth();
   const [holidays, setHolidays] = useState([]);
+  const [birthdays, setBirthdays] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState('upcoming');
@@ -42,7 +43,18 @@ export default function HolidaysPage() {
 
   useEffect(() => {
     fetchHolidays();
+    fetchBirthdays();
   }, [filter]);
+
+  const fetchBirthdays = async () => {
+    try {
+      const { data } = await api.get('/api/employees/birthdays');
+      setBirthdays(data || []);
+    } catch (err) {
+      // Non-critical: user may not have manage_employees permission
+      console.log('Could not fetch birthdays (may lack permission)');
+    }
+  };
 
   const fetchHolidays = async () => {
     try {
@@ -228,16 +240,31 @@ export default function HolidaysPage() {
         `}} />
         <Calendar
           localizer={localizer}
-          events={holidays.map(h => {
-            const d = new Date(h.date);
-            return {
-              title: `${HOLIDAY_TYPES[h.type]?.icon || '📅'} ${h.name}`,
-              start: d,
-              end: d,
-              allDay: true,
-              resource: h,
-            };
-          })}
+          events={[
+            // Holiday events
+            ...holidays.map(h => {
+              const d = new Date(h.date);
+              return {
+                title: `${HOLIDAY_TYPES[h.type]?.icon || '📅'} ${h.name}`,
+                start: d,
+                end: d,
+                allDay: true,
+                resource: { ...h, _eventType: 'holiday' },
+              };
+            }),
+            // Birthday events (show in current year)
+            ...birthdays.map(emp => {
+              const dob = new Date(emp.dateOfBirth);
+              const thisYearBday = new Date(new Date().getFullYear(), dob.getMonth(), dob.getDate());
+              return {
+                title: `🎂 ${emp.firstName} ${emp.lastName}'s Birthday`,
+                start: thisYearBday,
+                end: thisYearBday,
+                allDay: true,
+                resource: { _eventType: 'birthday', employee: emp },
+              };
+            }),
+          ]}
           startAccessor="start"
           endAccessor="end"
           style={{ height: 600 }}
@@ -251,14 +278,17 @@ export default function HolidaysPage() {
           } : undefined}
           selectable={canManage}
           eventPropGetter={(event) => {
-            const h = event.resource;
+            const r = event.resource;
+            if (r._eventType === 'birthday') {
+              return { style: { backgroundColor: '#f687b3', border: 'none', color: '#1a202c', fontWeight: 'bold' } };
+            }
             const bgMap = {
-              regular: '#fc8181', // light red
-              special_non_working: '#f6ad55', // orange
-              company: '#63b3ed', // blue
-              optional: '#4fd1c5' // teal
+              regular: '#fc8181',
+              special_non_working: '#f6ad55',
+              company: '#63b3ed',
+              optional: '#4fd1c5'
             };
-            return { style: { backgroundColor: bgMap[h.type] || '#718096', border: 'none', color: '#1a202c', fontWeight: 'bold' } };
+            return { style: { backgroundColor: bgMap[r.type] || '#718096', border: 'none', color: '#1a202c', fontWeight: 'bold' } };
           }}
         />
       </div>

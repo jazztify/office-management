@@ -1,7 +1,9 @@
 const express = require('express');
 const LeaveRequest = require('../models/LeaveRequest');
+const EmployeeProfile = require('../models/EmployeeProfile');
 const { approveLeaveRequest } = require('../services/leaveService');
 const { checkPermission } = require('../middlewares/checkPermission');
+const { notifyHRAdmins, createAndSendNotification } = require('../services/wsService');
 
 const router = express.Router();
 
@@ -19,7 +21,6 @@ router.get('/', async (req, res) => {
     // Secure query for non-managers
     const hasManageLeaves = req.user.permissions?.includes('manage_leaves') || req.user.permissions?.includes('*');
     if (!hasManageLeaves) {
-      const EmployeeProfile = require('../models/EmployeeProfile');
       const userProfile = await EmployeeProfile.findOne({ userId: req.user._id }).lean();
       if (!userProfile) {
         return res.json({ requests: [], pagination: { total: 0, page: 1, limit: parseInt(limit), totalPages: 0 } });
@@ -64,7 +65,6 @@ router.post('/', async (req, res) => {
 
     // Automatically resolve employeeId for regular users, or if omitted
     if (!employeeId || (!req.user.permissions?.includes('manage_leaves') && !req.user.permissions?.includes('*'))) {
-      const EmployeeProfile = require('../models/EmployeeProfile');
       const emp = await EmployeeProfile.findOne({ userId: req.user._id }).lean();
       if (!emp) return res.status(404).json({ error: 'Employee profile not found' });
       employeeId = emp._id;
@@ -90,6 +90,20 @@ router.post('/', async (req, res) => {
       reason,
     });
 
+    // Get employee name for notification
+    const emp = await EmployeeProfile.findById(employeeId).lean();
+    const empName = emp ? `${emp.firstName} ${emp.lastName}` : 'An employee';
+
+    // Notify HR/Admin about the new leave request
+    await notifyHRAdmins(req.tenantId, {
+      senderId: req.user._id,
+      type: 'leave_request',
+      title: 'New Leave Request',
+      message: `${empName} requested ${leaveType} leave from ${start.toLocaleDateString()} to ${end.toLocaleDateString()}.${reason ? ' Reason: ' + reason : ''}`,
+      referenceId: request._id,
+      referenceModel: 'LeaveRequest',
+    });
+
     res.status(201).json(request);
   } catch (err) {
     console.error('POST /leaves Error:', err.message);
@@ -105,6 +119,25 @@ router.post('/:id/approve', checkPermission('manage_leaves'), async (req, res) =
   try {
     const managerId = req.headers['x-manager-id'] || req.user?._id;
     const result = await approveLeaveRequest(req.params.id, managerId);
+
+    // Notify the employee about approval
+    const leaveReq = await LeaveRequest.findById(req.params.id).populate('employeeId').lean();
+    if (leaveReq) {
+      const empProfile = await EmployeeProfile.findById(leaveReq.employeeId._id).lean();
+      if (empProfile) {
+        await createAndSendNotification({
+          tenantId: req.tenantId,
+          recipientId: empProfile.userId,
+          senderId: req.user._id,
+          type: 'leave_approved',
+          title: 'Leave Request Approved',
+          message: `Your ${leaveReq.leaveType} leave request has been approved.`,
+          referenceId: leaveReq._id,
+          referenceModel: 'LeaveRequest',
+        });
+      }
+    }
+
     res.json(result);
   } catch (err) {
     console.error('POST /leaves/:id/approve Error:', err.message);
@@ -126,6 +159,21 @@ router.post('/:id/reject', checkPermission('manage_leaves'), async (req, res) =>
 
     if (!request) {
       return res.status(404).json({ error: 'Leave request not found or already processed' });
+    }
+
+    // Notify the employee about rejection
+    const empProfile = await EmployeeProfile.findById(request.employeeId).lean();
+    if (empProfile) {
+      await createAndSendNotification({
+        tenantId: req.tenantId,
+        recipientId: empProfile.userId,
+        senderId: req.user._id,
+        type: 'leave_rejected',
+        title: 'Leave Request Declined',
+        message: `Your ${request.leaveType} leave request has been declined.`,
+        referenceId: request._id,
+        referenceModel: 'LeaveRequest',
+      });
     }
 
     res.json({ success: true, message: 'Leave request rejected', request });

@@ -6,11 +6,18 @@ export default function AttendancePage() {
   const { user } = useAuth();
   const [todayRecord, setTodayRecord] = useState(null);
   const [settings, setSettings] = useState({});
+  const [earlyOutApproval, setEarlyOutApproval] = useState(null);
   const [history, setHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeTab, setActiveTab] = useState('today');
+
+  // Early out / half day request
+  const [showEarlyOutForm, setShowEarlyOutForm] = useState(false);
+  const [earlyOutForm, setEarlyOutForm] = useState({ requestType: 'early_out', reason: '', requestedClockOut: '' });
+  const [earlyOutRequests, setEarlyOutRequests] = useState([]);
+  const [earlyOutLoading, setEarlyOutLoading] = useState(false);
 
   // HR view states
   const [allRecords, setAllRecords] = useState([]);
@@ -18,6 +25,9 @@ export default function AttendancePage() {
   const [filterEmployee, setFilterEmployee] = useState('');
   const [filterDate, setFilterDate] = useState('');
   const [hrLoading, setHrLoading] = useState(false);
+
+  // HR: pending early-out requests
+  const [pendingEarlyOuts, setPendingEarlyOuts] = useState([]);
 
   const isHR = user?.permissions?.includes('manage_employees') || user?.permissions?.includes('*');
 
@@ -32,6 +42,7 @@ export default function AttendancePage() {
       const { data } = await api.get('/api/attendance/my-today');
       setTodayRecord(data.record);
       setSettings(data.settings || {});
+      setEarlyOutApproval(data.earlyOutApproval || null);
     } catch (err) {
       console.error('Failed to load today record', err);
     }
@@ -45,6 +56,25 @@ export default function AttendancePage() {
       console.error('Failed to load history', err);
     }
   }, []);
+
+  const fetchEarlyOutRequests = useCallback(async () => {
+    try {
+      const { data } = await api.get('/api/early-out');
+      setEarlyOutRequests(data.requests || []);
+    } catch (err) {
+      console.error('Failed to load early-out requests', err);
+    }
+  }, []);
+
+  const fetchPendingEarlyOuts = useCallback(async () => {
+    if (!isHR) return;
+    try {
+      const { data } = await api.get('/api/early-out?status=pending');
+      setPendingEarlyOuts(data.requests || []);
+    } catch (err) {
+      console.error('Failed to load pending early-outs', err);
+    }
+  }, [isHR]);
 
   const fetchAllRecords = useCallback(async () => {
     if (!isHR) return;
@@ -75,11 +105,11 @@ export default function AttendancePage() {
 
   useEffect(() => {
     const load = async () => {
-      await Promise.all([fetchTodayRecord(), fetchHistory(), fetchEmployees()]);
+      await Promise.all([fetchTodayRecord(), fetchHistory(), fetchEmployees(), fetchEarlyOutRequests(), fetchPendingEarlyOuts()]);
       setIsLoading(false);
     };
     load();
-  }, [fetchTodayRecord, fetchHistory, fetchEmployees]);
+  }, [fetchTodayRecord, fetchHistory, fetchEmployees, fetchEarlyOutRequests, fetchPendingEarlyOuts]);
 
   useEffect(() => {
     if (activeTab === 'all' && isHR) {
@@ -94,9 +124,52 @@ export default function AttendancePage() {
       await fetchTodayRecord();
       await fetchHistory();
     } catch (err) {
-      alert(err.response?.data?.error || `Failed to ${action}`);
+      const errData = err.response?.data;
+      if (errData?.requiresApproval) {
+        if (confirm('You need an approved early-out or half-day request to clock out early. Would you like to submit a request now?')) {
+          setShowEarlyOutForm(true);
+        }
+      } else {
+        alert(errData?.error || `Failed to ${action}`);
+      }
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleEarlyOutSubmit = async (e) => {
+    e.preventDefault();
+    setEarlyOutLoading(true);
+    try {
+      const today = new Date();
+      const pht = new Date(today.getTime() + (8 * 60 * 60 * 1000));
+      const dateStr = pht.toISOString().split('T')[0];
+
+      await api.post('/api/early-out', {
+        date: dateStr,
+        requestType: earlyOutForm.requestType,
+        reason: earlyOutForm.reason,
+        requestedClockOut: earlyOutForm.requestedClockOut || null,
+      });
+
+      alert(`${earlyOutForm.requestType === 'early_out' ? 'Early out' : 'Half day'} request submitted! Waiting for HR/Admin approval.`);
+      setShowEarlyOutForm(false);
+      setEarlyOutForm({ requestType: 'early_out', reason: '', requestedClockOut: '' });
+      fetchEarlyOutRequests();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to submit request');
+    } finally {
+      setEarlyOutLoading(false);
+    }
+  };
+
+  const handleEarlyOutAction = async (id, status, rejectionReason = '') => {
+    try {
+      await api.patch(`/api/early-out/${id}/status`, { status, rejectionReason });
+      fetchPendingEarlyOuts();
+      fetchEarlyOutRequests();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update request');
     }
   };
 
@@ -143,6 +216,15 @@ export default function AttendancePage() {
     return map[status] || { class: 'badge-muted', label: status };
   };
 
+  const getRequestStatusBadge = (status) => {
+    const map = {
+      pending: { class: 'badge-warning', label: '⏳ Pending' },
+      approved: { class: 'badge-success', label: '✅ Approved' },
+      rejected: { class: 'badge-danger', label: '❌ Rejected' },
+    };
+    return map[status] || { class: 'badge-muted', label: status };
+  };
+
   const nextAction = getNextAction();
   const officeStart = settings?.officeHours?.start || '08:00';
   const officeEnd = settings?.officeHours?.end || '17:00';
@@ -170,10 +252,22 @@ export default function AttendancePage() {
         <button className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
           📋 My History
         </button>
+        <button className={`tab-btn ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
+          🚪 Early Out / Half Day
+          {earlyOutRequests.filter(r => r.status === 'pending').length > 0 && (
+            <span className="tab-badge">{earlyOutRequests.filter(r => r.status === 'pending').length}</span>
+          )}
+        </button>
         {isHR && (
-          <button className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>
-            👥 All Employees
-          </button>
+          <>
+            <button className={`tab-btn ${activeTab === 'approvals' ? 'active' : ''}`} onClick={() => setActiveTab('approvals')}>
+              ✅ Approve Requests
+              {pendingEarlyOuts.length > 0 && <span className="tab-badge">{pendingEarlyOuts.length}</span>}
+            </button>
+            <button className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>
+              👥 All Employees
+            </button>
+          </>
         )}
       </div>
 
@@ -189,6 +283,11 @@ export default function AttendancePage() {
               <div style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
                 {currentTime.toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
               </div>
+              {earlyOutApproval && (
+                <div style={{ marginTop: '0.75rem', padding: '0.5rem 1rem', background: 'var(--color-success-bg, rgba(46,204,113,0.1))', borderRadius: '8px', display: 'inline-block' }}>
+                  ✅ You have an approved {earlyOutApproval.requestType === 'early_out' ? 'early out' : 'half day'} today
+                </div>
+              )}
             </div>
           </div>
 
@@ -210,6 +309,16 @@ export default function AttendancePage() {
                     >
                       {actionLoading ? '⏳ Processing...' : getActionConfig(nextAction).label}
                     </button>
+                    {nextAction === 'clock-out' && !earlyOutApproval && (
+                      <div style={{ marginTop: '1rem' }}>
+                        <button
+                          className="btn-filter btn-sm"
+                          onClick={() => setShowEarlyOutForm(true)}
+                        >
+                          📝 Request Early Out / Half Day
+                        </button>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div style={{ color: 'var(--color-success)', fontSize: '1.1rem', fontWeight: '600' }}>
@@ -220,40 +329,66 @@ export default function AttendancePage() {
             </div>
           </div>
 
+          {/* Early Out Request Form (modal-like) */}
+          {showEarlyOutForm && (
+            <div className="dashboard-panels" style={{ marginBottom: '1.5rem' }}>
+              <div className="panel" style={{ border: '2px solid var(--color-primary)' }}>
+                <div className="panel-title">📝 Request Early Out / Half Day</div>
+                <div className="panel-body">
+                  <form onSubmit={handleEarlyOutSubmit}>
+                    <div className="employee-form-grid">
+                      <div className="form-group">
+                        <label>Request Type</label>
+                        <select
+                          className="select-input"
+                          value={earlyOutForm.requestType}
+                          onChange={e => setEarlyOutForm({ ...earlyOutForm, requestType: e.target.value })}
+                        >
+                          <option value="early_out">🚪 Early Out</option>
+                          <option value="half_day">🌗 Half Day</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Requested Clock Out Time</label>
+                        <input
+                          type="time"
+                          value={earlyOutForm.requestedClockOut}
+                          onChange={e => setEarlyOutForm({ ...earlyOutForm, requestedClockOut: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                        <label>Reason *</label>
+                        <textarea
+                          placeholder="Explain why you need to leave early..."
+                          value={earlyOutForm.reason}
+                          onChange={e => setEarlyOutForm({ ...earlyOutForm, reason: e.target.value })}
+                          style={{ minHeight: '80px', width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)' }}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="form-actions">
+                      <button type="submit" className="btn-primary" disabled={earlyOutLoading}>
+                        {earlyOutLoading ? 'Submitting...' : 'Submit Request'}
+                      </button>
+                      <button type="button" className="btn-filter" onClick={() => setShowEarlyOutForm(false)}>Cancel</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Today's Timeline */}
           <div className="dashboard-panels">
             <div className="panel">
               <div className="panel-title">Today's Timeline</div>
               <div className="panel-body">
                 <div className="attendance-timeline">
-                  <TimelineStep
-                    label="Clock In"
-                    icon="⏱️"
-                    time={formatTime(todayRecord?.clockIn)}
-                    expected={officeStart}
-                    isActive={!!todayRecord?.clockIn}
-                  />
-                  <TimelineStep
-                    label="Lunch Out"
-                    icon="🍔"
-                    time={formatTime(todayRecord?.lunchOut)}
-                    expected={lunchStartTime}
-                    isActive={!!todayRecord?.lunchOut}
-                  />
-                  <TimelineStep
-                    label="Lunch In"
-                    icon="🔙"
-                    time={formatTime(todayRecord?.lunchIn)}
-                    expected={lunchEndTime}
-                    isActive={!!todayRecord?.lunchIn}
-                  />
-                  <TimelineStep
-                    label="Clock Out"
-                    icon="🚪"
-                    time={formatTime(todayRecord?.clockOut)}
-                    expected={officeEnd}
-                    isActive={!!todayRecord?.clockOut}
-                  />
+                  <TimelineStep label="Clock In" icon="⏱️" time={formatTime(todayRecord?.clockIn)} expected={officeStart} isActive={!!todayRecord?.clockIn} />
+                  <TimelineStep label="Lunch Out" icon="🍔" time={formatTime(todayRecord?.lunchOut)} expected={lunchStartTime} isActive={!!todayRecord?.lunchOut} />
+                  <TimelineStep label="Lunch In" icon="🔙" time={formatTime(todayRecord?.lunchIn)} expected={lunchEndTime} isActive={!!todayRecord?.lunchIn} />
+                  <TimelineStep label="Clock Out" icon="🚪" time={formatTime(todayRecord?.clockOut)} expected={officeEnd} isActive={!!todayRecord?.clockOut} />
                 </div>
               </div>
             </div>
@@ -302,6 +437,133 @@ export default function AttendancePage() {
                     </tr>
                   );
                 })
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* EARLY OUT / HALF DAY REQUESTS TAB */}
+      {activeTab === 'requests' && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+            <button className="btn-primary btn-sm" onClick={() => setShowEarlyOutForm(true)}>
+              + New Request
+            </button>
+          </div>
+
+          {showEarlyOutForm && (
+            <div className="dashboard-panels" style={{ marginBottom: '1.5rem' }}>
+              <div className="panel" style={{ border: '2px solid var(--color-primary)' }}>
+                <div className="panel-title">📝 New Early Out / Half Day Request</div>
+                <div className="panel-body">
+                  <form onSubmit={handleEarlyOutSubmit}>
+                    <div className="employee-form-grid">
+                      <div className="form-group">
+                        <label>Request Type</label>
+                        <select className="select-input" value={earlyOutForm.requestType} onChange={e => setEarlyOutForm({ ...earlyOutForm, requestType: e.target.value })}>
+                          <option value="early_out">🚪 Early Out</option>
+                          <option value="half_day">🌗 Half Day</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Requested Clock Out Time</label>
+                        <input type="time" value={earlyOutForm.requestedClockOut} onChange={e => setEarlyOutForm({ ...earlyOutForm, requestedClockOut: e.target.value })} />
+                      </div>
+                      <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                        <label>Reason *</label>
+                        <textarea
+                          placeholder="Explain why you need to leave early..."
+                          value={earlyOutForm.reason}
+                          onChange={e => setEarlyOutForm({ ...earlyOutForm, reason: e.target.value })}
+                          style={{ minHeight: '80px', width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)' }}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="form-actions">
+                      <button type="submit" className="btn-primary" disabled={earlyOutLoading}>{earlyOutLoading ? 'Submitting...' : 'Submit Request'}</button>
+                      <button type="button" className="btn-filter" onClick={() => setShowEarlyOutForm(false)}>Cancel</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Reason</th>
+                  <th>Clock Out</th>
+                  <th>Status</th>
+                  <th>Approved By</th>
+                </tr>
+              </thead>
+              <tbody>
+                {earlyOutRequests.length === 0 ? (
+                  <tr><td colSpan="6" className="empty-state">No early out or half day requests yet.</td></tr>
+                ) : (
+                  earlyOutRequests.map((req) => {
+                    const statusBadge = getRequestStatusBadge(req.status);
+                    return (
+                      <tr key={req._id}>
+                        <td className="cell-primary">{formatDate(req.date)}</td>
+                        <td><span className="badge badge-info">{req.requestType === 'early_out' ? '🚪 Early Out' : '🌗 Half Day'}</span></td>
+                        <td style={{ maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{req.reason}</td>
+                        <td>{req.requestedClockOut || '—'}</td>
+                        <td><span className={`badge ${statusBadge.class}`}>{statusBadge.label}</span></td>
+                        <td>{req.approvedBy ? `${req.approvedBy.firstName} ${req.approvedBy.lastName}` : '—'}</td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* HR: APPROVE EARLY OUT REQUESTS */}
+      {activeTab === 'approvals' && isHR && (
+        <div className="table-container">
+          <h3 style={{ marginBottom: '1rem' }}>Pending Early Out / Half Day Requests</h3>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Reason</th>
+                <th>Clock Out</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pendingEarlyOuts.length === 0 ? (
+                <tr><td colSpan="6" className="empty-state">No pending requests. 🎉</td></tr>
+              ) : (
+                pendingEarlyOuts.map((req) => (
+                  <tr key={req._id}>
+                    <td className="cell-primary">{req.employeeId?.firstName} {req.employeeId?.lastName}</td>
+                    <td>{formatDate(req.date)}</td>
+                    <td><span className="badge badge-info">{req.requestType === 'early_out' ? '🚪 Early Out' : '🌗 Half Day'}</span></td>
+                    <td style={{ maxWidth: '250px' }}>{req.reason}</td>
+                    <td>{req.requestedClockOut || '—'}</td>
+                    <td>
+                      <div className="action-group">
+                        <button className="btn-sm btn-success" onClick={() => handleEarlyOutAction(req._id, 'approved')}>Approve</button>
+                        <button className="btn-sm btn-danger" onClick={() => {
+                          const reason = prompt('Rejection reason (optional):');
+                          handleEarlyOutAction(req._id, 'rejected', reason || '');
+                        }}>Reject</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

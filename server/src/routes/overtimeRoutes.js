@@ -1,6 +1,7 @@
 const express = require('express');
 const OvertimeRequest = require('../models/OvertimeRequest');
 const EmployeeProfile = require('../models/EmployeeProfile');
+const { notifyHRAdmins, createAndSendNotification } = require('../services/wsService');
 
 const router = express.Router();
 
@@ -56,6 +57,17 @@ router.post('/', async (req, res) => {
       reason,
     });
 
+    // Notify HR/Admin
+    const empName = `${emp.firstName} ${emp.lastName}`;
+    await notifyHRAdmins(req.tenantId, {
+      senderId: req.user._id,
+      type: 'overtime_request',
+      title: 'New Overtime Request',
+      message: `${empName} is requesting ${hoursRequested} hours of overtime on ${new Date(date).toLocaleDateString()}. Reason: ${reason}`,
+      referenceId: otRequest._id,
+      referenceModel: 'OvertimeRequest',
+    });
+
     res.status(201).json(otRequest);
   } catch (err) {
     console.error('POST /overtime Error:', err.message);
@@ -91,10 +103,26 @@ router.patch('/:id/status', async (req, res) => {
     }
 
     const ot = await OvertimeRequest.findByIdAndUpdate(req.params.id, update, { new: true })
-      .populate('employeeId', 'firstName lastName')
+      .populate('employeeId', 'firstName lastName userId')
       .populate('approvedBy', 'firstName lastName');
 
     if (!ot) return res.status(404).json({ error: 'Overtime request not found' });
+
+    // Notify the employee about the decision
+    const statusLabel = status === 'approved' ? 'Approved' : 'Declined';
+    const empProfile = await EmployeeProfile.findById(ot.employeeId._id).lean();
+    if (empProfile) {
+      await createAndSendNotification({
+        tenantId: req.tenantId,
+        recipientId: empProfile.userId,
+        senderId: req.user._id,
+        type: `overtime_${status}`,
+        title: `Overtime Request ${statusLabel}`,
+        message: `Your overtime request has been ${status}.${rejectionReason ? ' Reason: ' + rejectionReason : ''}`,
+        referenceId: ot._id,
+        referenceModel: 'OvertimeRequest',
+      });
+    }
 
     res.json(ot);
   } catch (err) {
