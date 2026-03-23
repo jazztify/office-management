@@ -4,7 +4,7 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const Role = require('../models/Role');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-me';
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 
 // Map of userId -> Set of WebSocket connections
 const userConnections = new Map();

@@ -27,17 +27,22 @@ const approveLeaveRequest = async (leaveRequestId, managerId) => {
     throw new Error('Employee not found');
   }
 
-  const availableCredits = employee.leaveCredits[request.leaveType] || 0;
+  if (employee.leaveCredits[request.leaveType] === undefined) {
+    employee.leaveCredits[request.leaveType] = 0;
+  }
+  const availableCredits = employee.leaveCredits[request.leaveType];
+  let creditStatusNote = '';
   if (daysRequested > availableCredits) {
-    // Rollback the status change
-    await LeaveRequest.findByIdAndUpdate(leaveRequestId, { status: 'pending', approvedBy: null });
-    throw new Error('Insufficient credits');
+    creditStatusNote = ` Warning: Employee has insufficient credits (${availableCredits}). Approval will result in negative balance.`;
   }
 
   employee.leaveCredits[request.leaveType] -= daysRequested;
   await employee.save();
 
-  return { success: true, message: 'Leave approved and credits deducted successfully.' };
+  return { 
+    success: true, 
+    message: `Leave approved and credits updated.${creditStatusNote}`
+  };
 };
 
 module.exports = { approveLeaveRequest };

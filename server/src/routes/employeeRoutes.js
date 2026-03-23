@@ -1,5 +1,6 @@
 const express = require('express');
 const EmployeeProfile = require('../models/EmployeeProfile');
+const { checkPermission } = require('../middlewares/checkPermission');
 
 const router = express.Router();
 
@@ -7,7 +8,7 @@ const router = express.Router();
  * GET /api/employees
  * List all employees in the current tenant workspace
  */
-router.get('/', async (req, res) => {
+router.get('/', checkPermission('manage_employees'), async (req, res) => {
   try {
     const employees = await EmployeeProfile.find()
       .populate('userId', 'email isActive')
@@ -101,7 +102,7 @@ router.get('/:id', async (req, res) => {
  * POST /api/employees
  * Create an employee profile linked to a user
  */
-router.post('/', async (req, res) => {
+router.post('/', checkPermission('manage_employees'), async (req, res) => {
   try {
     const { userId, firstName, lastName, department, managerId, position, salary, dateOfBirth, hireDate } = req.body;
 
@@ -133,7 +134,7 @@ router.post('/', async (req, res) => {
  * PATCH /api/employees/:id
  * Update employee details (department, manager, leave credits, position, salary, birthday, hireDate)
  */
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', checkPermission('manage_employees'), async (req, res) => {
   try {
     const allowedUpdates = [
       'firstName', 'lastName', 'department', 'managerId', 'leaveCredits',
@@ -177,7 +178,7 @@ router.patch('/:id', async (req, res) => {
  * DELETE /api/employees/:id
  * Remove an employee profile
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', checkPermission('manage_employees'), async (req, res) => {
   try {
     const employee = await EmployeeProfile.findByIdAndDelete(req.params.id);
     if (!employee) {

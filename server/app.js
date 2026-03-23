@@ -90,7 +90,7 @@ app.get('/api/me', async (req, res) => {
 
 // ─── Core API Routes (tenant-scoped) ─────────────────────────
 app.use('/api/users', userRoutes);
-app.use('/api/employees', checkPermission('manage_employees'), employeeRoutes);
+app.use('/api/employees', employeeRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/overtime', overtimeRoutes);
 app.use('/api/leaves', leaveRoutes);
