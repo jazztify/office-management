@@ -27,8 +27,9 @@ const app = express();
 
 // ─── CORS (client on :5173 ↔ server on :5000) ───────────────
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
   credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
 }));
 
 app.use(express.json());
