@@ -129,16 +129,25 @@ export default function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        {/* System Owner Panel link - only for owner */}
+        {/* System Owner Panel links - only for owner */}
         {isSystemOwner && (
-          <Link
-            to="/system-admin"
-            className={`sidebar-link ${location.pathname === '/system-admin' ? 'active' : ''}`}
-            style={{ borderBottom: '1px solid var(--color-border)', marginBottom: '0.5rem', paddingBottom: '0.75rem' }}
-          >
-            <span className="sidebar-icon">👑</span>
-            <span className="sidebar-label">Owner Panel</span>
-          </Link>
+          <>
+            <Link
+              to="/system-admin"
+              className={`sidebar-link ${location.pathname === '/system-admin' ? 'active' : ''}`}
+              style={{ borderBottom: '1px solid var(--color-border)', marginBottom: '0.5rem', paddingBottom: '0.75rem' }}
+            >
+              <span className="sidebar-icon">👑</span>
+              <span className="sidebar-label">Owner Panel</span>
+            </Link>
+            <Link
+              to="/system-settings"
+              className={`sidebar-link ${location.pathname === '/system-settings' ? 'active' : ''}`}
+            >
+              <span className="sidebar-icon">⚙️</span>
+              <span className="sidebar-label">System Settings</span>
+            </Link>
+          </>
         )}
 
         {authorizedNavigation.map((item) => {

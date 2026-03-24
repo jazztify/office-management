@@ -12,7 +12,7 @@ export default function SuperAdminPage() {
   const [formData, setFormData] = useState({
     name: '', subdomain: '', subscriptionTier: 'free',
     adminEmail: '', adminPassword: '', adminFirstName: '', adminLastName: '',
-    logoUrl: ''
+    logoUrl: '', customPrice: '', activeModules: []
   });
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -59,7 +59,8 @@ export default function SuperAdminPage() {
       });
       setFormData({
         name: '', subdomain: '', subscriptionTier: 'free',
-        adminEmail: '', adminPassword: '', adminFirstName: '', adminLastName: '', logoUrl: ''
+        adminEmail: '', adminPassword: '', adminFirstName: '', adminLastName: '', logoUrl: '',
+        customPrice: '', activeModules: []
       });
       setShowForm(false);
       fetchTenants();
@@ -187,8 +188,68 @@ export default function SuperAdminPage() {
                   <option value="free">Free</option>
                   <option value="pro">Pro</option>
                   <option value="enterprise">Enterprise</option>
+                  <option value="custom">Custom Plan</option>
                 </select>
               </div>
+
+              {formData.subscriptionTier === 'custom' && (
+                <>
+                  {/* Custom Price */}
+                  <div className="form-group">
+                    <label>Custom Monthly Price (₱) *</label>
+                    <input
+                      type="number"
+                      className="select-input"
+                      placeholder="e.g. 4999"
+                      min="0"
+                      step="0.01"
+                      value={formData.customPrice}
+                      onChange={e => setFormData({ ...formData, customPrice: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  {/* Active Modules Checkboxes */}
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                    <label>Active Modules</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      {[
+                        { key: 'attendance', label: '📋 Attendance' },
+                        { key: 'leaves', label: '🏖️ Leaves' },
+                        { key: 'payroll', label: '💰 Payroll' },
+                        { key: 'overtime', label: '⏰ Overtime' },
+                        { key: 'shifts', label: '🔄 Shifts' },
+                        { key: 'holidays', label: '📅 Holidays' },
+                        { key: 'inventory', label: '📦 Inventory' },
+                        { key: 'hr', label: '👥 HR' },
+                        { key: 'pos', label: '🏪 POS' },
+                        { key: 'club_management', label: '🎯 Club Mgmt' },
+                      ].map(mod => (
+                        <label key={mod.key} style={{
+                          display: 'flex', alignItems: 'center', gap: '0.5rem',
+                          padding: '0.5rem 0.75rem', borderRadius: '6px',
+                          background: formData.activeModules.includes(mod.key) ? 'rgba(99, 102, 241, 0.15)' : 'var(--color-bg-hover)',
+                          border: `1px solid ${formData.activeModules.includes(mod.key) ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                          cursor: 'pointer', fontSize: '0.85rem',
+                          transition: 'all 0.2s ease',
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={formData.activeModules.includes(mod.key)}
+                            onChange={e => {
+                              const updated = e.target.checked
+                                ? [...formData.activeModules, mod.key]
+                                : formData.activeModules.filter(m => m !== mod.key);
+                              setFormData({ ...formData, activeModules: updated });
+                            }}
+                          />
+                          {mod.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                 <label>Company/Client Logo (Optional)</label>
                 <input type="file" accept="image/*" className="select-input" onChange={e => {
@@ -336,7 +397,7 @@ export default function SuperAdminPage() {
                         {t.subdomain}
                       </code>
                     </td>
-                    <td><span className={`badge badge-tier-${t.subscriptionTier}`}>{t.subscriptionTier}</span></td>
+                    <td><span className={`badge badge-tier-${t.subscriptionTier}`}>{t.subscriptionTier}{t.subscriptionTier === 'custom' && t.customPrice ? ` (₱${Number(t.customPrice).toLocaleString()})` : ''}</span></td>
                     <td><span className={`badge badge-${t.status === 'active' ? 'success' : 'danger'}`}>{t.status}</span></td>
                     <td>{t.metrics?.userCount || 0}</td>
                     <td>{t.metrics?.employeeCount || 0}</td>

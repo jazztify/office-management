@@ -13,6 +13,7 @@ const OvertimeRequest = require('./OvertimeRequest');
 const Holiday = require('./Holiday');
 const Notification = require('./Notification');
 const Payslip = require('./Payslip');
+const SubscriptionPlan = require('./SubscriptionPlan');
 
 // --- Associations ---
 
@@ -119,6 +120,7 @@ module.exports = {
   Holiday,
   Notification,
   Payslip,
+  SubscriptionPlan,
   UserRoles,
   EmployeeShifts
 };

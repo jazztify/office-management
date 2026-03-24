@@ -1,6 +1,6 @@
 const express = require('express');
 const { Op } = require('sequelize');
-const { Tenant, User, Role, EmployeeProfile, sequelize } = require('../models');
+const { Tenant, User, Role, EmployeeProfile, SubscriptionPlan, sequelize } = require('../models');
 const { hashPassword } = require('../services/authService');
 
 const router = express.Router();
@@ -44,6 +44,7 @@ router.post('/tenants', async (req, res) => {
       subdomain,
       subscriptionTier,
       activeModules,
+      customPrice,
       adminEmail,
       adminPassword,
       adminFirstName,
@@ -61,12 +62,32 @@ router.post('/tenants', async (req, res) => {
       return res.status(409).json({ error: `Subdomain '${subdomain}' is already taken` });
     }
 
+    // Resolve tier settings
+    let resolvedTier = subscriptionTier || 'free';
+    let resolvedModules = activeModules || [];
+    let resolvedPrice = null;
+
+    if (resolvedTier === 'custom') {
+      // Custom plan: use values directly from the request
+      resolvedModules = activeModules || [];
+      resolvedPrice = customPrice || 0;
+    } else {
+      // Standard plan: apply default modules from database
+      const plan = await SubscriptionPlan.findOne({ where: { tierName: resolvedTier }, transaction });
+      if (!plan) {
+        throw new Error(`Invalid subscription tier: ${resolvedTier}`);
+      }
+      resolvedModules = plan.activeModules;
+      resolvedPrice = plan.monthlyPrice;
+    }
+
     // 1. Create the tenant
     const tenant = await Tenant.create({
       name,
       subdomain,
-      subscriptionTier: subscriptionTier || 'free',
-      activeModules: activeModules || [],
+      subscriptionTier: resolvedTier,
+      activeModules: resolvedModules,
+      customPrice: resolvedPrice,
       logoUrl,
     }, { transaction });
 
@@ -146,7 +167,7 @@ router.post('/tenants', async (req, res) => {
  */
 router.patch('/tenants/:id', async (req, res) => {
   try {
-    const allowedUpdates = ['name', 'status', 'subscriptionTier', 'activeModules', 'customDomain', 'logoUrl'];
+    const allowedUpdates = ['name', 'status', 'subscriptionTier', 'activeModules', 'customDomain', 'logoUrl', 'customPrice'];
     const updates = {};
 
     for (const key of allowedUpdates) {
@@ -240,6 +261,48 @@ router.get('/telemetry', async (req, res) => {
   } catch (err) {
     console.error('GET /admin/telemetry Error:', err.message);
     res.status(500).json({ error: 'Failed to generate telemetry' });
+  }
+});
+
+/**
+ * GET /api/admin/plans
+ */
+router.get('/plans', async (req, res) => {
+  try {
+    const plans = await SubscriptionPlan.findAll({
+      order: [['monthlyPrice', 'ASC']]
+    });
+    res.json(plans);
+  } catch (err) {
+    console.error('GET /admin/plans Error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch plans' });
+  }
+});
+
+/**
+ * PATCH /api/admin/plans/:tierName
+ */
+router.patch('/plans/:tierName', async (req, res) => {
+  try {
+    const { monthlyPrice, activeModules, description } = req.body;
+    const { tierName } = req.params;
+
+    const [updatedCount, updatedRows] = await SubscriptionPlan.update(
+      { monthlyPrice, activeModules, description },
+      { 
+        where: { tierName },
+        returning: true 
+      }
+    );
+
+    if (updatedCount === 0) {
+      return res.status(404).json({ error: 'Plan not found' });
+    }
+
+    res.json(updatedRows[0]);
+  } catch (err) {
+    console.error('PATCH /admin/plans Error:', err.message);
+    res.status(500).json({ error: 'Failed to update plan' });
   }
 });
 

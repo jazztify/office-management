@@ -1,4 +1,7 @@
-const { sequelize, Tenant, User, Role, EmployeeProfile } = require('./src/models');
+const { 
+  Tenant, User, Role, EmployeeProfile, SubscriptionPlan, 
+  sequelize 
+} = require('./src/models');
 const { hashPassword } = require('./src/services/authService');
 
 async function setup() {
@@ -8,10 +11,47 @@ async function setup() {
     // 1. Sync Database (Migrations via Sync)
     console.log('[1/4] Synchronizing tables...');
     await sequelize.sync({ alter: true });
-    console.log('✅ Tables synchronized.');
+    console.log('ℹ️ Database synced.');
+
+    // --- Seed Subscription Plans ---
+    console.log('--- 🛡️ Seeding Subscription Plans ---');
+    const plans = [
+      {
+        tierName: 'free',
+        monthlyPrice: 0,
+        activeModules: ['attendance', 'leaves'],
+        description: 'Basic attendance tracking for small teams'
+      },
+      {
+        tierName: 'pro',
+        monthlyPrice: 2999,
+        activeModules: ['attendance', 'leaves', 'payroll', 'overtime', 'shifts', 'holidays'],
+        description: 'Full payroll and shift management'
+      },
+      {
+        tierName: 'enterprise',
+        monthlyPrice: 9999,
+        activeModules: ['attendance', 'leaves', 'payroll', 'overtime', 'shifts', 'holidays', 'inventory', 'hr', 'pos', 'club_management'],
+        description: 'Complete enterprise resources and inventory'
+      }
+    ];
+
+    for (const plan of plans) {
+      const [p, created] = await SubscriptionPlan.findOrCreate({
+        where: { tierName: plan.tierName },
+        defaults: plan
+      });
+      if (created) {
+        console.log(`✅ Plan "${plan.tierName}" created.`);
+      } else {
+        // Optionally update existing ones to match if they've changed
+        await p.update(plan);
+        console.log(`ℹ️ Plan "${plan.tierName}" already exists (updated).`);
+      }
+    }
 
     // 2. Create Default Tenant
-    console.log('[2/4] Seeding default tenant...');
+    console.log('[3/4] Seeding default tenant...');
     const [tenant, tenantCreated] = await Tenant.findOrCreate({
       where: { subdomain: 'admin' },
       defaults: {

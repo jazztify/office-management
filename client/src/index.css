@@ -1475,6 +1475,18 @@ input, select, textarea {
   border: 1px solid rgba(239, 68, 68, 0.15);
 }
 
+.badge-tier-enterprise {
+  background: rgba(255, 107, 107, 0.1);
+  color: #ff6b6b;
+  border: 1px solid rgba(255, 107, 107, 0.2);
+}
+
+.badge-tier-custom {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(236, 72, 153, 0.15));
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
 /* ─── Utility ──────────────────────────────────────────────── */
 .text-muted {
   color: var(--color-text-muted);

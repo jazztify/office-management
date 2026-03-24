@@ -16,6 +16,7 @@ import InventoryPage from './pages/InventoryPage';
 import SettingsPage from './pages/SettingsPage';
 import ShiftsPage from './pages/ShiftsPage';
 import SuperAdminPage from './pages/SuperAdminPage';
+import SystemSettingsPage from './pages/SystemSettingsPage';
 
 function ProtectedLayout() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -82,6 +83,7 @@ export default function App() {
             <Route path="/shifts" element={<ShiftsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/system-admin" element={<SuperAdminPage />} />
+            <Route path="/system-settings" element={<SystemSettingsPage />} />
           </Route>
 
           {/* Fallback */}

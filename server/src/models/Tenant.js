@@ -33,8 +33,13 @@ const Tenant = sequelize.define('Tenant', {
     type: DataTypes.JSONB, // Array of strings stored as JSONB
     defaultValue: [],
   },
+  customPrice: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    defaultValue: null,
+  },
   subscriptionTier: {
-    type: DataTypes.ENUM('free', 'pro', 'enterprise'),
+    type: DataTypes.ENUM('free', 'pro', 'enterprise', 'custom'),
     defaultValue: 'free',
   },
   settings: {
