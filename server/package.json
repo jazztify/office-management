@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "setup": "node setup_database.js",
     "test": "npx jest --no-colors --verbose"
   },
   "keywords": [],
@@ -16,12 +17,13 @@
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.3.0",
+    "pg": "^8.20.0",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.8",
     "ws": "^8.20.0"
   },
   "devDependencies": {
     "jest": "^30.3.0",
-    "mongodb-memory-server": "^11.0.1",
     "supertest": "^7.2.2"
   }
 }

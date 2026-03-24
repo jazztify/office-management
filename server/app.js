@@ -1,17 +1,11 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
-
-// Register global tenant plugin *before* importing any models
-const tenantFilterPlugin = require('./src/middlewares/mongooseTenantFilter');
-mongoose.plugin(tenantFilterPlugin);
 
 const { tenantMiddleware } = require('./src/middlewares/tenantMiddleware');
 const { jwtAuthMiddleware } = require('./src/middlewares/jwtAuthMiddleware');
 const { checkPermission } = require('./src/middlewares/checkPermission');
 const { requireModule } = require('./src/middlewares/requireModule');
-const User = require('./src/models/User');
-const Tenant = require('./src/models/Tenant');
+const { User, Tenant, EmployeeProfile } = require('./src/models');
 
 // Import route modules
 const authRoutes = require('./src/routes/authRoutes');
@@ -58,24 +52,26 @@ app.get('/api/me', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const tenant = await Tenant.findById(req.user.tenantId)
-      .select('name subdomain activeModules subscriptionTier logoUrl')
-      .lean();
+    const tenant = await Tenant.findByPk(req.user.tenantId, {
+      attributes: ['_id', 'name', 'subdomain', 'activeModules', 'subscriptionTier', 'logoUrl']
+    });
 
-    const EmployeeProfile = require('./src/models/EmployeeProfile');
-    const employee = await EmployeeProfile.findOne({ userId: req.user._id }).select('_id firstName lastName').lean();
+    const employee = await EmployeeProfile.findOne({ 
+      where: { userId: req.user._id },
+      attributes: ['_id', 'firstName', 'lastName']
+    });
 
-    // Flatten permissions from populated roles
-    const permissions = req.user.roles
-      ? [...new Set(req.user.roles.flatMap(role => role.permissions || []))]
-      : [];
+    // Flatten permissions from roles (already populated in jwtAuthMiddleware or needed here?)
+    // In current app.js, it uses req.user.roles
+    const roles = req.user.Roles || [];
+    const permissions = [...new Set(roles.flatMap(role => role.permissions || []))];
 
     res.json({
       user: {
         _id: req.user._id,
         email: req.user.email,
         tenantId: req.user.tenantId,
-        roles: req.user.roles?.map(r => ({ _id: r._id, name: r.name, permissions: r.permissions })) || [],
+        roles: roles.map(r => ({ _id: r._id, name: r.name, permissions: r.permissions })),
         permissions,
         employeeProfileId: employee?._id || null,
         employeeName: employee ? `${employee.firstName} ${employee.lastName}` : null,

@@ -1,53 +1,96 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const employeeSchema = new mongoose.Schema({
-  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  firstName: { type: String, required: true },
-  lastName: { type: String, required: true },
-  department: { type: String },
-  position: { type: String },
-  salary: { type: Number, default: 0 },
-  managerId: { type: mongoose.Schema.Types.ObjectId, ref: 'EmployeeProfile' }, // Self-referential hierarchy
-  dateOfBirth: { type: Date }, // For birthday calendar feature
-  hireDate: { type: Date, default: Date.now }, // When the employee started
+const EmployeeProfile = sequelize.define('EmployeeProfile', {
+  _id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'Tenants',
+      key: '_id',
+    },
+  },
+  userId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'Users',
+      key: '_id',
+    },
+  },
+  firstName: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  lastName: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  department: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  position: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  salary: {
+    type: DataTypes.DECIMAL(15, 2),
+    defaultValue: 0,
+  },
+  managerId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'EmployeeProfiles',
+      key: '_id',
+    },
+  },
+  dateOfBirth: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+  },
+  hireDate: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW,
+  },
   employmentStatus: {
-    type: String,
-    enum: ['training', 'probationary', 'regular'],
-    default: 'training',
+    type: DataTypes.ENUM('training', 'probationary', 'regular'),
+    defaultValue: 'training',
   },
   leaveCredits: {
-    vacation: { type: Number, default: 14 },
-    sick: { type: Number, default: 7 },
-    bereavement: { type: Number, default: 3 }
-  }
-}, { timestamps: true });
+    type: DataTypes.JSONB,
+    defaultValue: {
+      vacation: 14,
+      sick: 7,
+      bereavement: 3,
+    },
+  },
+}, {
+  timestamps: true,
+  hooks: {
+    beforeSave: (employee) => {
+      if (employee.hireDate) {
+        const now = new Date();
+        const hire = new Date(employee.hireDate);
+        const diffMs = now - hire;
+        const diffMonths = diffMs / (1000 * 60 * 60 * 24 * 30.44);
 
-/**
- * Virtual: compute employment status based on hireDate
- * Training: 0-1 months | Probationary: 1-6 months | Regular: 6+ months
- */
-employeeSchema.methods.computeEmploymentStatus = function () {
-  if (!this.hireDate) return this.employmentStatus;
-
-  const now = new Date();
-  const hire = new Date(this.hireDate);
-  const diffMs = now - hire;
-  const diffMonths = diffMs / (1000 * 60 * 60 * 24 * 30.44); // Average month
-
-  if (diffMonths < 1) return 'training';
-  if (diffMonths < 6) return 'probationary';
-  return 'regular';
-};
-
-/**
- * Pre-save hook: auto-update employmentStatus based on hireDate
- */
-employeeSchema.pre('save', function (next) {
-  if (this.hireDate) {
-    this.employmentStatus = this.computeEmploymentStatus();
-  }
-  next();
+        if (diffMonths < 1) {
+          employee.employmentStatus = 'training';
+        } else if (diffMonths < 6) {
+          employee.employmentStatus = 'probationary';
+        } else {
+          employee.employmentStatus = 'regular';
+        }
+      }
+    },
+  },
 });
 
-module.exports = mongoose.model('EmployeeProfile', employeeSchema);
+module.exports = EmployeeProfile;

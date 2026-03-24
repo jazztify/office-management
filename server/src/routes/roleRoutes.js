@@ -1,5 +1,5 @@
 const express = require('express');
-const Role = require('../models/Role');
+const { Role } = require('../models');
 
 const router = express.Router();
 
@@ -9,7 +9,7 @@ const router = express.Router();
  */
 router.get('/', async (req, res) => {
   try {
-    const roles = await Role.find().lean();
+    const roles = await Role.findAll({ where: { tenantId: req.tenantId } });
     res.json(roles);
   } catch (err) {
     console.error('GET /roles Error:', err.message);
@@ -29,7 +29,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'name and permissions array are required' });
     }
 
-    const existing = await Role.findOne({ name, tenantId: req.tenantId });
+    const existing = await Role.findOne({ where: { name, tenantId: req.tenantId } });
     if (existing) {
       return res.status(409).json({ error: `Role '${name}' already exists in this workspace` });
     }
@@ -55,7 +55,7 @@ router.post('/', async (req, res) => {
  */
 router.patch('/:id', async (req, res) => {
   try {
-    const role = await Role.findById(req.params.id);
+    const role = await Role.findOne({ where: { _id: req.params.id, tenantId: req.tenantId } });
 
     if (!role) {
       return res.status(404).json({ error: 'Role not found' });
@@ -86,7 +86,7 @@ router.patch('/:id', async (req, res) => {
  */
 router.delete('/:id', async (req, res) => {
   try {
-    const role = await Role.findById(req.params.id);
+    const role = await Role.findOne({ where: { _id: req.params.id, tenantId: req.tenantId } });
 
     if (!role) {
       return res.status(404).json({ error: 'Role not found' });
@@ -96,7 +96,7 @@ router.delete('/:id', async (req, res) => {
       return res.status(403).json({ error: 'System default roles cannot be deleted' });
     }
 
-    await Role.deleteOne({ _id: role._id });
+    await Role.destroy({ where: { _id: role._id, tenantId: req.tenantId } });
     res.json({ message: `Role '${role.name}' deleted successfully` });
   } catch (err) {
     console.error('DELETE /roles/:id Error:', err.message);

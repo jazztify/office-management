@@ -1,6 +1,5 @@
 const express = require('express');
-const Shift = require('../models/Shift');
-const EmployeeProfile = require('../models/EmployeeProfile');
+const { Shift, EmployeeProfile } = require('../models');
 
 const router = express.Router();
 
@@ -10,10 +9,16 @@ const router = express.Router();
  */
 router.get('/', async (req, res) => {
   try {
-    const shifts = await Shift.find({ tenantId: req.tenantId })
-      .populate('assignedEmployees', 'firstName lastName')
-      .sort({ createdAt: -1 })
-      .lean();
+    const shifts = await Shift.findAll({
+      where: { tenantId: req.tenantId },
+      include: [{
+        model: EmployeeProfile,
+        as: 'assignedEmployees',
+        attributes: ['firstName', 'lastName'],
+        through: { attributes: [] }
+      }],
+      order: [['createdAt', 'DESC']]
+    });
     res.json(shifts);
   } catch (err) {
     console.error('GET /shifts Error:', err.message);
@@ -42,7 +47,6 @@ router.post('/', async (req, res) => {
       lunchEnd,
       workDays: workDays || [1, 2, 3, 4, 5], // default Mon-Fri
       description,
-      assignedEmployees: []
     });
 
     res.status(201).json(shift);
@@ -59,16 +63,24 @@ router.post('/', async (req, res) => {
 router.patch('/:id/assign', async (req, res) => {
   try {
     const { employeeIds } = req.body; // Array of IDs
-    const shift = await Shift.findById(req.params.id);
+    const shift = await Shift.findOne({ where: { _id: req.params.id, tenantId: req.tenantId } });
 
-    if (!shift || shift.tenantId.toString() !== req.tenantId) {
+    if (!shift) {
       return res.status(404).json({ error: 'Shift not found' });
     }
 
-    shift.assignedEmployees = employeeIds;
-    await shift.save();
+    await shift.setAssignedEmployees(employeeIds);
+    
+    // Re-fetch to return full object
+    const updatedShift = await Shift.findByPk(shift._id, {
+      include: [{
+        model: EmployeeProfile,
+        as: 'assignedEmployees',
+        through: { attributes: [] }
+      }]
+    });
 
-    res.json({ message: 'Employees assigned successfully', shift });
+    res.json({ message: 'Employees assigned successfully', shift: updatedShift });
   } catch (err) {
     console.error('PATCH /shifts/:id/assign Error:', err.message);
     res.status(500).json({ error: 'Failed to assign employees' });
@@ -81,10 +93,12 @@ router.patch('/:id/assign', async (req, res) => {
  */
 router.delete('/:id', async (req, res) => {
   try {
-    const shift = await Shift.findOneAndDelete({ _id: req.params.id, tenantId: req.tenantId });
+    const shift = await Shift.findOne({ where: { _id: req.params.id, tenantId: req.tenantId } });
     if (!shift) {
       return res.status(404).json({ error: 'Shift not found' });
     }
+    
+    await shift.destroy();
     res.json({ message: 'Shift deleted successfully' });
   } catch (err) {
     console.error('DELETE /shifts/:id Error:', err.message);

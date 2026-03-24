@@ -1,19 +1,72 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const earlyOutRequestSchema = new mongoose.Schema({
-  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
-  employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'EmployeeProfile', required: true },
-  date: { type: String, required: true }, // YYYY-MM-DD
-  requestType: { type: String, enum: ['early_out', 'half_day'], required: true },
-  reason: { type: String, required: true },
-  requestedClockOut: { type: String }, // e.g. '14:00' — when they want to leave
-  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
-  approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'EmployeeProfile' },
-  approvedAt: { type: Date },
-  rejectionReason: { type: String },
-}, { timestamps: true });
+const EarlyOutRequest = sequelize.define('EarlyOutRequest', {
+  _id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'Tenants',
+      key: '_id',
+    },
+  },
+  employeeId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'EmployeeProfiles',
+      key: '_id',
+    },
+  },
+  date: {
+    type: DataTypes.STRING, // YYYY-MM-DD
+    allowNull: false,
+  },
+  requestType: {
+    type: DataTypes.ENUM('early_out', 'half_day'),
+    allowNull: false,
+  },
+  reason: {
+    type: DataTypes.TEXT,
+    allowNull: false,
+  },
+  requestedClockOut: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  status: {
+    type: DataTypes.ENUM('pending', 'approved', 'rejected'),
+    defaultValue: 'pending',
+  },
+  approvedBy: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'EmployeeProfiles',
+      key: '_id',
+    },
+  },
+  approvedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  rejectionReason: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+}, {
+  timestamps: true,
+  indexes: [
+    {
+      unique: true,
+      fields: ['employeeId', 'date', 'requestType']
+    }
+  ]
+});
 
-// One request per employee per day per type
-earlyOutRequestSchema.index({ employeeId: 1, date: 1, requestType: 1 }, { unique: true });
-
-module.exports = mongoose.model('EarlyOutRequest', earlyOutRequestSchema);
+module.exports = EarlyOutRequest;

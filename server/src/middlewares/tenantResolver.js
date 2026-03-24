@@ -1,7 +1,6 @@
-const { AsyncLocalStorage } = require('async_hooks');
-const Tenant = require('../models/Tenant');
-
-const tenantContext = new AsyncLocalStorage();
+const { Op } = require('sequelize');
+const { Tenant } = require('../models');
+const { tenantContext } = require('./context');
 
 const extractTenant = async (req, res, next) => {
   try {
@@ -16,7 +15,6 @@ const extractTenant = async (req, res, next) => {
     }
 
     // Special logic for Super Admin to bypass tenant check (from Phase 5)
-    // Assuming simple verification for demonstration in the test suite
     if (req.user && req.user.isSuperAdmin) {
       return next(); // bypass tenant context run
     }
@@ -30,9 +28,16 @@ const extractTenant = async (req, res, next) => {
     }
 
     // Resolve tenant from database
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(tenantIdentifier);
+    
     const tenant = await Tenant.findOne({ 
-      $or: [{ subdomain: tenantIdentifier }, { _id: tenantIdentifier }] 
-    }).lean();
+      where: {
+        [Op.or]: [
+          { subdomain: tenantIdentifier },
+          isUUID ? { _id: tenantIdentifier } : null
+        ].filter(Boolean)
+      }
+    });
 
     if (!tenant || tenant.status !== 'active') {
       return res.status(403).json({ error: 'Tenant is inactive or does not exist' });

@@ -1,5 +1,5 @@
 const express = require('express');
-const Tenant = require('../models/Tenant');
+const { Tenant } = require('../models');
 
 const router = express.Router();
 
@@ -29,7 +29,7 @@ const DEFAULT_SETTINGS = {
  */
 router.get('/', async (req, res) => {
   try {
-    const tenant = await Tenant.findById(req.tenantId).select('settings').lean();
+    const tenant = await Tenant.findByPk(req.tenantId, { attributes: ['settings'] });
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
 
     // Merge with defaults to ensure all fields exist
@@ -49,17 +49,16 @@ router.get('/', async (req, res) => {
 
 /**
  * PATCH /api/settings
- * HR: Update tenant settings (deductions, office hours, overtime rules)
+ * HR: Update tenant settings
  */
 router.patch('/', async (req, res) => {
   try {
     const updates = req.body;
 
-    const tenant = await Tenant.findById(req.tenantId);
+    const tenant = await Tenant.findByPk(req.tenantId);
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
 
-    // Deep merge settings
-    const currentSettings = tenant.toObject().settings || {};
+    const currentSettings = tenant.settings || {};
 
     if (updates.officeHours) {
       currentSettings.officeHours = { ...currentSettings.officeHours, ...updates.officeHours };
@@ -74,7 +73,8 @@ router.patch('/', async (req, res) => {
       currentSettings.gracePeriod = updates.gracePeriod;
     }
 
-    tenant.settings = currentSettings;
+    // Explicitly set the field as modified if it's JSONB
+    tenant.settings = { ...currentSettings };
     await tenant.save();
 
     res.json(tenant.settings);

@@ -1,11 +1,11 @@
 const express = require('express');
-const Notification = require('../models/Notification');
+const { Notification } = require('../models');
 
 const router = express.Router();
 
 /**
  * GET /api/notifications
- * Get current user's notifications (latest 50, sorted by date)
+ * Get current user's notifications
  */
 router.get('/', async (req, res) => {
   try {
@@ -16,19 +16,21 @@ router.get('/', async (req, res) => {
       filter.isRead = false;
     }
 
-    const notifications = await Notification.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit))
-      .lean();
-
-    const total = await Notification.countDocuments(filter);
-    const unreadCount = await Notification.countDocuments({
-      recipientId: req.user._id,
-      isRead: false,
+    const { count, rows } = await Notification.findAndCountAll({
+      where: filter,
+      order: [['createdAt', 'DESC']],
+      offset: (page - 1) * limit,
+      limit: parseInt(limit)
     });
 
-    res.json({ notifications, unreadCount, total });
+    const unreadCount = await Notification.count({
+      where: {
+        recipientId: req.user._id,
+        isRead: false,
+      }
+    });
+
+    res.json({ notifications: rows, unreadCount, total: count });
   } catch (err) {
     console.error('GET /notifications Error:', err.message);
     res.status(500).json({ error: 'Failed to fetch notifications' });
@@ -37,20 +39,19 @@ router.get('/', async (req, res) => {
 
 /**
  * PATCH /api/notifications/:id/read
- * Mark a single notification as read
  */
 router.patch('/:id/read', async (req, res) => {
   try {
-    const notification = await Notification.findOneAndUpdate(
-      { _id: req.params.id, recipientId: req.user._id },
+    const [updatedCount] = await Notification.update(
       { isRead: true },
-      { new: true }
+      { where: { _id: req.params.id, recipientId: req.user._id } }
     );
 
-    if (!notification) {
+    if (updatedCount === 0) {
       return res.status(404).json({ error: 'Notification not found' });
     }
 
+    const notification = await Notification.findByPk(req.params.id);
     res.json(notification);
   } catch (err) {
     console.error('PATCH /notifications/:id/read Error:', err.message);
@@ -60,13 +61,12 @@ router.patch('/:id/read', async (req, res) => {
 
 /**
  * PATCH /api/notifications/read-all
- * Mark all notifications as read
  */
 router.patch('/read-all', async (req, res) => {
   try {
-    await Notification.updateMany(
-      { recipientId: req.user._id, isRead: false },
-      { isRead: true }
+    await Notification.update(
+      { isRead: true },
+      { where: { recipientId: req.user._id, isRead: false } }
     );
 
     res.json({ success: true, message: 'All notifications marked as read' });

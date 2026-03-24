@@ -1,6 +1,6 @@
 const express = require('express');
-const LeaveRequest = require('../models/LeaveRequest');
-const EmployeeProfile = require('../models/EmployeeProfile');
+const { Op } = require('sequelize');
+const { LeaveRequest, EmployeeProfile, User } = require('../models');
 const { approveLeaveRequest } = require('../services/leaveService');
 const { checkPermission } = require('../middlewares/checkPermission');
 const { notifyHRAdmins, createAndSendNotification } = require('../services/wsService');
@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
     // Secure query for non-managers
     const hasManageLeaves = req.user.permissions?.includes('manage_leaves') || req.user.permissions?.includes('*');
     if (!hasManageLeaves) {
-      const userProfile = await EmployeeProfile.findOne({ userId: req.user._id }).lean();
+      const userProfile = await EmployeeProfile.findOne({ where: { userId: req.user._id } });
       if (!userProfile) {
         return res.json({ requests: [], pagination: { total: 0, page: 1, limit: parseInt(limit), totalPages: 0 } });
       }
@@ -30,23 +30,24 @@ router.get('/', async (req, res) => {
       if (employeeId) filter.employeeId = employeeId;
     }
 
-    const requests = await LeaveRequest.find(filter)
-      .populate('employeeId', 'firstName lastName')
-      .populate('approvedBy', 'firstName lastName')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit))
-      .lean();
-
-    const total = await LeaveRequest.countDocuments(filter);
+    const { count, rows } = await LeaveRequest.findAndCountAll({
+      where: filter,
+      include: [
+        { model: EmployeeProfile, as: 'employee', attributes: ['firstName', 'lastName'] },
+        { model: User, as: 'approver', attributes: ['email'] } // Actually models/index has approvedBy -> User
+      ],
+      order: [['createdAt', 'DESC']],
+      offset: (page - 1) * limit,
+      limit: parseInt(limit)
+    });
 
     res.json({
-      requests,
+      requests: rows,
       pagination: {
-        total,
+        total: count,
         page: parseInt(page),
         limit: parseInt(limit),
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil(count / limit),
       },
     });
   } catch (err) {
@@ -63,9 +64,8 @@ router.post('/', async (req, res) => {
   try {
     let { employeeId, leaveType, startDate, endDate, reason } = req.body;
 
-    // Automatically resolve employeeId for regular users, or if omitted
     if (!employeeId || (!req.user.permissions?.includes('manage_leaves') && !req.user.permissions?.includes('*'))) {
-      const emp = await EmployeeProfile.findOne({ userId: req.user._id }).lean();
+      const emp = await EmployeeProfile.findOne({ where: { userId: req.user._id } });
       if (!emp) return res.status(404).json({ error: 'Employee profile not found' });
       employeeId = emp._id;
     }
@@ -74,7 +74,6 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'employeeId, leaveType, startDate, and endDate are required' });
     }
 
-    // Validate date range
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (end <= start) {
@@ -90,11 +89,9 @@ router.post('/', async (req, res) => {
       reason,
     });
 
-    // Get employee name for notification
-    const emp = await EmployeeProfile.findById(employeeId).lean();
+    const emp = await EmployeeProfile.findByPk(employeeId);
     const empName = emp ? `${emp.firstName} ${emp.lastName}` : 'An employee';
 
-    // Notify HR/Admin about the new leave request
     await notifyHRAdmins(req.tenantId, {
       senderId: req.user._id,
       type: 'leave_request',
@@ -113,17 +110,15 @@ router.post('/', async (req, res) => {
 
 /**
  * POST /api/leaves/:id/approve
- * Manager approval — triggers ACID transaction for credit deduction
  */
 router.post('/:id/approve', checkPermission('manage_leaves'), async (req, res) => {
   try {
     const managerId = req.headers['x-manager-id'] || req.user?._id;
     const result = await approveLeaveRequest(req.params.id, managerId);
 
-    // Notify the employee about approval
-    const leaveReq = await LeaveRequest.findById(req.params.id).populate('employeeId').lean();
+    const leaveReq = await LeaveRequest.findByPk(req.params.id);
     if (leaveReq) {
-      const empProfile = await EmployeeProfile.findById(leaveReq.employeeId._id).lean();
+      const empProfile = await EmployeeProfile.findByPk(leaveReq.employeeId);
       if (empProfile) {
         await createAndSendNotification({
           tenantId: req.tenantId,
@@ -147,22 +142,20 @@ router.post('/:id/approve', checkPermission('manage_leaves'), async (req, res) =
 
 /**
  * POST /api/leaves/:id/reject
- * Reject a pending leave request
  */
 router.post('/:id/reject', checkPermission('manage_leaves'), async (req, res) => {
   try {
-    const request = await LeaveRequest.findOneAndUpdate(
-      { _id: req.params.id, status: 'pending' },
+    const [updatedCount, updatedRows] = await LeaveRequest.update(
       { status: 'rejected', approvedBy: req.user?._id },
-      { new: true }
+      { where: { _id: req.params.id, status: 'pending', tenantId: req.tenantId }, returning: true }
     );
 
-    if (!request) {
+    if (updatedCount === 0) {
       return res.status(404).json({ error: 'Leave request not found or already processed' });
     }
 
-    // Notify the employee about rejection
-    const empProfile = await EmployeeProfile.findById(request.employeeId).lean();
+    const request = updatedRows[0];
+    const empProfile = await EmployeeProfile.findByPk(request.employeeId);
     if (empProfile) {
       await createAndSendNotification({
         tenantId: req.tenantId,

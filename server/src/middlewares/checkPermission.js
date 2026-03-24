@@ -1,4 +1,4 @@
-const User = require('../models/User');
+const { User, Role } = require('../models');
 
 const checkPermission = (requiredPermission) => {
   return async (req, res, next) => {
@@ -10,8 +10,18 @@ const checkPermission = (requiredPermission) => {
 
       const userId = req.user._id;
 
-      // Populate roles to extract the underlying permission arrays
-      const user = await User.findById(userId).populate('roles').lean();
+      // Use the user already in req.user if roles are populated
+      let user = req.user;
+      
+      // If Roles are not populated, or if we want a fresh check
+      if (!user.Roles) {
+        user = await User.findByPk(userId, {
+          include: [{
+            model: Role,
+            through: { attributes: [] }
+          }]
+        });
+      }
 
       if (!user) {
         console.log("RBAC Error: Missing user from DB");
@@ -19,13 +29,13 @@ const checkPermission = (requiredPermission) => {
       }
 
       // If user has no roles or empty roles array, reject unless permissions are global
-      if (!user.roles || user.roles.length === 0) {
+      if (!user.Roles || user.Roles.length === 0) {
         return res.status(403).json({ message: "Forbidden: No roles assigned" });
       }
 
       // Flatten the permissions from all assigned roles into a single Set for O(1) lookup
       const userPermissions = new Set(
-        user.roles.flatMap(role => role.permissions || [])
+        user.Roles.flatMap(role => role.permissions || [])
       );
 
       req.user.permissions = Array.from(userPermissions);

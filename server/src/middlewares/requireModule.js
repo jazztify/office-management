@@ -5,7 +5,9 @@ const requireModule = (moduleName) => {
     try {
       // req.tenantId is securely injected by the initial tenantResolver middleware
       // We project only the activeModules field for performance optimization
-      const tenant = await Tenant.findById(req.tenantId).select('activeModules').lean();
+      const tenant = await Tenant.findByPk(req.tenantId, {
+        attributes: ['activeModules']
+      });
 
       if (!tenant || !tenant.activeModules || !tenant.activeModules.includes(moduleName)) {
         return res.status(402).json({ 

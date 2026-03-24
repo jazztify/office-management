@@ -1,27 +1,73 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const notificationSchema = new mongoose.Schema({
-  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
-  recipientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-  senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+const Notification = sequelize.define('Notification', {
+  _id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'Tenants',
+      key: '_id',
+    },
+  },
+  recipientId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'Users',
+      key: '_id',
+    },
+  },
+  senderId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'Users',
+      key: '_id',
+    },
+  },
   type: {
-    type: String,
-    enum: [
+    type: DataTypes.ENUM(
       'leave_request', 'leave_approved', 'leave_rejected',
       'overtime_request', 'overtime_approved', 'overtime_rejected',
       'early_out_request', 'early_out_approved', 'early_out_rejected',
       'half_day_request', 'half_day_approved', 'half_day_rejected',
-      'general',
-    ],
-    required: true,
+      'general'
+    ),
+    allowNull: false,
   },
-  title: { type: String, required: true },
-  message: { type: String, required: true },
-  referenceId: { type: mongoose.Schema.Types.ObjectId }, // ID of the related request
-  referenceModel: { type: String }, // 'LeaveRequest', 'OvertimeRequest', 'EarlyOutRequest'
-  isRead: { type: Boolean, default: false },
-}, { timestamps: true });
+  title: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  message: {
+    type: DataTypes.TEXT,
+    allowNull: false,
+  },
+  referenceId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+  },
+  referenceModel: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  isRead: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+}, {
+  timestamps: true,
+  indexes: [
+    {
+      fields: ['recipientId', 'isRead', 'createdAt']
+    }
+  ]
+});
 
-notificationSchema.index({ recipientId: 1, isRead: 1, createdAt: -1 });
-
-module.exports = mongoose.model('Notification', notificationSchema);
+module.exports = Notification;

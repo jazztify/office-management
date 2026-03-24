@@ -1,15 +1,8 @@
 const { verifyToken } = require('../services/authService');
-const User = require('../models/User');
+const { User, Role } = require('../models');
 
 /**
  * JWT Authentication Middleware
- * 
- * Supports two modes:
- * 1. Production: Authorization: Bearer <token> header
- * 2. Development/Test: x-user-id header fallback (for test suite compatibility)
- * 
- * This dual-mode approach allows the Anti-Gravity Protocol tests to continue
- * working while real JWT auth is used in production.
  */
 const jwtAuthMiddleware = async (req, res, next) => {
   try {
@@ -23,7 +16,13 @@ const jwtAuthMiddleware = async (req, res, next) => {
         return res.status(401).json({ error: 'Invalid or expired token' });
       }
 
-      const user = await User.findById(decoded.userId).populate('roles').lean();
+      const user = await User.findByPk(decoded.userId, {
+        include: [{
+          model: Role,
+          through: { attributes: [] }
+        }]
+      });
+
       if (!user) {
         return res.status(401).json({ error: 'User no longer exists' });
       }
@@ -34,7 +33,7 @@ const jwtAuthMiddleware = async (req, res, next) => {
 
       // Compute flat permissions array from populated roles
       const userPermissions = new Set(
-        (user.roles || []).flatMap(role => role.permissions || [])
+        (user.Roles || []).flatMap(role => role.permissions || [])
       );
       user.permissions = Array.from(userPermissions);
 
@@ -45,14 +44,25 @@ const jwtAuthMiddleware = async (req, res, next) => {
     // Mode 2: x-user-id header fallback (test/development)
     const userId = req.headers['x-user-id'];
     if (userId) {
-      const user = await User.findById(userId).populate('roles').lean();
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId);
+      if (!isUUID) {
+         return res.status(403).json({ error: 'Unauthorized: Invalid user ID format' });
+      }
+
+      const user = await User.findByPk(userId, {
+        include: [{
+          model: Role,
+          through: { attributes: [] }
+        }]
+      });
+
       if (!user) {
         console.log(`jwtAuth: User not found for test ID ${userId}`);
         return res.status(403).json({ error: 'Unauthorized: User not found' });
       }
 
       const userPermissions = new Set(
-        (user.roles || []).flatMap(role => role.permissions || [])
+        (user.Roles || []).flatMap(role => role.permissions || [])
       );
       user.permissions = Array.from(userPermissions);
 

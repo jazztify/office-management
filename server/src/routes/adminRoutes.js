@@ -1,8 +1,6 @@
 const express = require('express');
-const Tenant = require('../models/Tenant');
-const User = require('../models/User');
-const Role = require('../models/Role');
-const EmployeeProfile = require('../models/EmployeeProfile');
+const { Op } = require('sequelize');
+const { Tenant, User, Role, EmployeeProfile, sequelize } = require('../models');
 const { hashPassword } = require('../services/authService');
 
 const router = express.Router();
@@ -13,15 +11,15 @@ const router = express.Router();
  */
 router.get('/tenants', async (req, res) => {
   try {
-    const tenants = await Tenant.find().lean();
+    const tenants = await Tenant.findAll();
 
     const tenantsWithMetrics = await Promise.all(
       tenants.map(async (tenant) => {
-        const userCount = await User.countDocuments({ tenantId: tenant._id });
-        const employeeCount = await EmployeeProfile.countDocuments({ tenantId: tenant._id });
+        const userCount = await User.count({ where: { tenantId: tenant._id } });
+        const employeeCount = await EmployeeProfile.count({ where: { tenantId: tenant._id } });
 
         return {
-          ...tenant,
+          ...tenant.toJSON(),
           metrics: { userCount, employeeCount },
         };
       })
@@ -37,16 +35,15 @@ router.get('/tenants', async (req, res) => {
 /**
  * POST /api/admin/tenants
  * Super Admin: Create a new tenant with its admin account
- * This creates the company/branch + admin user + default roles automatically
  */
 router.post('/tenants', async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
     const {
       name,
       subdomain,
       subscriptionTier,
       activeModules,
-      // Admin account details
       adminEmail,
       adminPassword,
       adminFirstName,
@@ -59,7 +56,7 @@ router.post('/tenants', async (req, res) => {
     }
 
     // Check for duplicate subdomain
-    const existing = await Tenant.findOne({ subdomain });
+    const existing = await Tenant.findOne({ where: { subdomain } });
     if (existing) {
       return res.status(409).json({ error: `Subdomain '${subdomain}' is already taken` });
     }
@@ -71,16 +68,16 @@ router.post('/tenants', async (req, res) => {
       subscriptionTier: subscriptionTier || 'free',
       activeModules: activeModules || [],
       logoUrl,
-    });
+    }, { transaction });
 
-    // 2. Create default roles for this tenant
+    // 2. Create default roles
     const adminRole = await Role.create({
       tenantId: tenant._id,
       name: 'Super Admin',
       description: 'Full access to everything',
       isSystemDefault: true,
       permissions: ['*'],
-    });
+    }, { transaction });
 
     await Role.create({
       tenantId: tenant._id,
@@ -91,16 +88,16 @@ router.post('/tenants', async (req, res) => {
         'view_payroll', 'manage_roles', 'manage_settings',
         'manage_holidays', 'generate_payslip',
       ],
-    });
+    }, { transaction });
 
     await Role.create({
       tenantId: tenant._id,
       name: 'Employee',
       description: 'Basic employee access',
       permissions: ['edit_attendance'],
-    });
+    }, { transaction });
 
-    // 3. Create admin user if credentials provided
+    // 3. Create admin user
     let adminUser = null;
     if (adminEmail && adminPassword) {
       const passwordHash = hashPassword(adminPassword);
@@ -109,10 +106,12 @@ router.post('/tenants', async (req, res) => {
         email: adminEmail,
         passwordHash,
         tenantId: tenant._id,
-        roles: [adminRole._id],
-      });
+      }, { transaction });
 
-      // Create employee profile for admin
+      // Associate role
+      await adminUser.addRole(adminRole, { transaction });
+
+      // Create employee profile
       await EmployeeProfile.create({
         tenantId: tenant._id,
         userId: adminUser._id,
@@ -122,8 +121,10 @@ router.post('/tenants', async (req, res) => {
         position: 'Administrator',
         salary: 0,
         leaveCredits: { vacation: 20, sick: 10, bereavement: 5 },
-      });
+      }, { transaction });
     }
+
+    await transaction.commit();
 
     res.status(201).json({
       message: `Tenant "${name}" created successfully!`,
@@ -132,9 +133,9 @@ router.post('/tenants', async (req, res) => {
         email: adminUser.email,
         workspace: subdomain,
       } : null,
-      roles: ['Super Admin', 'HR Manager', 'Employee'],
     });
   } catch (err) {
+    await transaction.rollback();
     console.error('POST /admin/tenants Error:', err.message);
     res.status(500).json({ error: 'Failed to create tenant: ' + err.message });
   }
@@ -142,7 +143,6 @@ router.post('/tenants', async (req, res) => {
 
 /**
  * PATCH /api/admin/tenants/:id
- * Super Admin: Update tenant subscription, modules, or status
  */
 router.patch('/tenants/:id', async (req, res) => {
   try {
@@ -155,12 +155,16 @@ router.patch('/tenants/:id', async (req, res) => {
       }
     }
 
-    const tenant = await Tenant.findByIdAndUpdate(req.params.id, updates, { new: true });
-    if (!tenant) {
+    const [updatedCount, updatedRows] = await Tenant.update(updates, {
+      where: { _id: req.params.id },
+      returning: true
+    });
+
+    if (updatedCount === 0) {
       return res.status(404).json({ error: 'Tenant not found' });
     }
 
-    res.json(tenant);
+    res.json(updatedRows[0]);
   } catch (err) {
     console.error('PATCH /admin/tenants/:id Error:', err.message);
     res.status(500).json({ error: 'Failed to update tenant' });
@@ -169,29 +173,27 @@ router.patch('/tenants/:id', async (req, res) => {
 
 /**
  * DELETE /api/admin/tenants/:id
- * Super Admin: Delete a tenant completely
  */
 router.delete('/tenants/:id', async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
     const tenantId = req.params.id;
     
-    // Check if tenant exists
-    const tenant = await Tenant.findById(tenantId);
+    const tenant = await Tenant.findByPk(tenantId);
     if (!tenant) {
       return res.status(404).json({ error: 'Tenant not found' });
     }
 
-    // You could also delete users, roles, employees, etc., but deleting the tenant record is the first step.
-    await Tenant.findByIdAndDelete(tenantId);
-    
-    // Optionally delete cascading data:
-    await User.deleteMany({ tenantId });
-    await Role.deleteMany({ tenantId });
-    await EmployeeProfile.deleteMany({ tenantId });
-    // Any other scoped models can be left hanging or deleted via a cron job or here.
+    // Cascading delete across all scoped models
+    await User.destroy({ where: { tenantId }, transaction });
+    await Role.destroy({ where: { tenantId }, transaction });
+    await EmployeeProfile.destroy({ where: { tenantId }, transaction });
+    await Tenant.destroy({ where: { _id: tenantId }, transaction });
 
+    await transaction.commit();
     res.json({ message: 'Tenant successfully deleted' });
   } catch (err) {
+    await transaction.rollback();
     console.error('DELETE /admin/tenants/:id Error:', err.message);
     res.status(500).json({ error: 'Failed to delete tenant' });
   }
@@ -199,28 +201,34 @@ router.delete('/tenants/:id', async (req, res) => {
 
 /**
  * GET /api/admin/telemetry
- * Super Admin: System-wide telemetry
  */
 router.get('/telemetry', async (req, res) => {
   try {
-    const totalTenants = await Tenant.countDocuments();
-    const activeTenants = await Tenant.countDocuments({ status: 'active' });
-    const suspendedTenants = await Tenant.countDocuments({ status: 'suspended' });
-    const totalUsers = await User.countDocuments();
+    const totalTenants = await Tenant.count();
+    const activeTenants = await Tenant.count({ where: { status: 'active' } });
+    const suspendedTenants = await Tenant.count({ where: { status: 'suspended' } });
+    const totalUsers = await User.count();
 
-    const userDistribution = await User.aggregate([
-      { $group: { _id: '$tenantId', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 20 },
-    ]);
+    // Group users by tenant
+    const userDistribution = await User.findAll({
+      attributes: [
+        'tenantId',
+        [sequelize.fn('COUNT', sequelize.col('_id')), 'count']
+      ],
+      group: ['tenantId'],
+      order: [[sequelize.literal('count'), 'DESC']],
+      limit: 20,
+    });
 
     const enrichedDistribution = await Promise.all(
       userDistribution.map(async (entry) => {
-        const tenant = await Tenant.findById(entry._id).select('name subdomain').lean();
+        const tenant = await Tenant.findByPk(entry.tenantId, {
+          attributes: ['name', 'subdomain']
+        });
         return {
           tenant: tenant ? tenant.name : 'Unknown',
           subdomain: tenant ? tenant.subdomain : 'unknown',
-          userCount: entry.count,
+          userCount: parseInt(entry.get('count')),
         };
       })
     );

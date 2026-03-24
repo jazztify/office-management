@@ -1,11 +1,12 @@
 const express = require('express');
-const Holiday = require('../models/Holiday');
+const { Op } = require('sequelize');
+const { Holiday } = require('../models');
 
 const router = express.Router();
 
 /**
  * GET /api/holidays
- * List holidays (defaults to upcoming only; pass ?all=true for all)
+ * List holidays
  */
 router.get('/', async (req, res) => {
   try {
@@ -13,21 +14,21 @@ router.get('/', async (req, res) => {
     const filter = {};
 
     if (!all) {
-      // Default: Show only upcoming holidays (today and forward)
-      filter.date = { $gte: new Date(new Date().setHours(0, 0, 0, 0)) };
+      filter.date = { [Op.gte]: new Date(new Date().setHours(0, 0, 0, 0)) };
     }
 
     if (year) {
       const startOfYear = new Date(`${year}-01-01`);
       const endOfYear = new Date(`${year}-12-31T23:59:59`);
-      filter.date = { $gte: startOfYear, $lte: endOfYear };
+      filter.date = { [Op.gte]: startOfYear, [Op.lte]: endOfYear };
     }
 
     if (type) filter.type = type;
 
-    const holidays = await Holiday.find(filter)
-      .sort({ date: 1 })
-      .lean();
+    const holidays = await Holiday.findAll({
+      where: filter,
+      order: [['date', 'ASC']]
+    });
 
     res.json(holidays);
   } catch (err) {
@@ -38,7 +39,6 @@ router.get('/', async (req, res) => {
 
 /**
  * POST /api/holidays
- * HR/Admin: Create a new holiday
  */
 router.post('/', async (req, res) => {
   try {
@@ -61,7 +61,7 @@ router.post('/', async (req, res) => {
 
     res.status(201).json(holiday);
   } catch (err) {
-    if (err.code === 11000) {
+    if (err.name === 'SequelizeUniqueConstraintError') {
       return res.status(409).json({ error: 'A holiday with this name already exists on that date' });
     }
     console.error('POST /holidays Error:', err.message);
@@ -71,14 +71,14 @@ router.post('/', async (req, res) => {
 
 /**
  * DELETE /api/holidays/:id
- * HR/Admin: Delete a holiday
  */
 router.delete('/:id', async (req, res) => {
   try {
-    const holiday = await Holiday.findByIdAndDelete(req.params.id);
+    const holiday = await Holiday.findOne({ where: { _id: req.params.id, tenantId: req.tenantId } });
     if (!holiday) {
       return res.status(404).json({ error: 'Holiday not found' });
     }
+    await holiday.destroy();
     res.json({ message: `Holiday '${holiday.name}' deleted successfully` });
   } catch (err) {
     console.error('DELETE /holidays/:id Error:', err.message);
