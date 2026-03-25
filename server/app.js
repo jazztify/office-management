@@ -33,7 +33,29 @@ const app = express();
 
 // ─── CORS (client on :5173 ↔ server on :5000) ───────────────
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:3000',
+    ];
+
+    // Allow any subdomain of localhost or app.com (for local dev)
+    const isAllowedSubdomain = 
+      origin.endsWith('.localhost:5173') || 
+      origin.endsWith('.localhost:5174') ||
+      origin.endsWith('.app.com:5173') ||
+      origin.endsWith('.app.com');
+
+    if (allowedOrigins.indexOf(origin) !== -1 || isAllowedSubdomain) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
 }));
