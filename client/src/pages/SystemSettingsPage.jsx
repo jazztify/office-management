@@ -12,16 +12,10 @@ export default function SystemSettingsPage() {
 
   // Available modules for all plans
   const availableModules = [
-    { key: 'attendance', label: '📋 Attendance' },
-    { key: 'leaves', label: '🏖️ Leaves' },
-    { key: 'payroll', label: '💰 Payroll' },
-    { key: 'overtime', label: '⏰ Overtime' },
-    { key: 'shifts', label: '🔄 Shifts' },
-    { key: 'holidays', label: '📅 Holidays' },
+    { key: 'hr_payroll', label: '👔 HR & Payroll' },
     { key: 'inventory', label: '📦 Inventory' },
-    { key: 'hr', label: '👥 HR' },
-    { key: 'pos', label: '🏪 POS' },
-    { key: 'club_management', label: '🎯 Club Mgmt' },
+    { key: 'pos', label: '🛒 Point of Sale' },
+    { key: 'club_management', label: '🏟️ Club Mgmt' },
   ];
 
   useEffect(() => {
