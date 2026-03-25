@@ -17,6 +17,7 @@ export function AuthProvider({ children }) {
     const urlSub = params.get('subdomain');
     
     if (urlToken) {
+      setIsLoading(true); // Ensure loading is true immediately
       localStorage.setItem('token', urlToken);
       if (urlSub) localStorage.setItem('tenantSubdomain', urlSub);
       // Clean URL immediately so refresh won't trigger this again
