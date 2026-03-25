@@ -196,9 +196,17 @@ const navigationConfig = [
   },
   {
     id: 'system-settings',
-    title: 'Module Config',
+    title: 'Platform Config',
     route: '/system-settings',
     requiredPermission: null,
+    moduleId: 'administration',
+    icon: '🏢', // Changed icon to distinguish from tenant settings
+  },
+  {
+    id: 'settings',
+    title: 'Branch Settings', // Clarified for Super Admin context
+    route: '/settings',
+    requiredPermission: 'manage_settings',
     moduleId: 'administration',
     icon: '⚙️',
   },
@@ -213,9 +221,12 @@ export default function Sidebar() {
 
   const authorizedNavigation = useMemo(() => {
     return navigationConfig.filter((item) => {
-      if (isSystemOwner && !['system-settings', 'system-admin'].includes(item.id)) {
+      // Allow dashboard and tenant settings for Super Admin too
+      if (isSystemOwner) {
+        if (['dashboard', 'settings', 'system-settings', 'system-admin'].includes(item.id)) return true;
         return false;
       }
+      
       if (item.requiredPermission && !hasPermission(item.requiredPermission)) {
         return false;
       }
