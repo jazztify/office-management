@@ -77,7 +77,10 @@ app.use(tenantMiddleware);
 // ─── Protected: GET /api/me (session hydration for frontend) ─
 app.get('/api/me', async (req, res) => {
   try {
+    console.log(`[GET /me] UserID: ${req.user?._id}, Requested TenantID (from header): ${req.tenantId}`);
+    
     if (!req.user) {
+      console.log('[GET /me] Error: req.user is missing');
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -85,15 +88,20 @@ app.get('/api/me', async (req, res) => {
       attributes: ['_id', 'name', 'subdomain', 'activeModules', 'subscriptionTier', 'logoUrl']
     });
 
+    if (!tenant) {
+      console.log(`[GET /me] Error: Tenant not found for ID ${req.tenantId}`);
+      return res.status(404).json({ error: 'Workspace not found' });
+    }
+
     const employee = await EmployeeProfile.findOne({ 
       where: { userId: req.user._id },
       attributes: ['_id', 'firstName', 'lastName']
     });
 
-    // Flatten permissions from roles (already populated in jwtAuthMiddleware or needed here?)
-    // In current app.js, it uses req.user.roles
     const roles = req.user.Roles || [];
     const permissions = [...new Set(roles.flatMap(role => role.permissions || []))];
+
+    console.log(`[GET /me] Success: User ${req.user.email} accessing ${tenant.subdomain}`);
 
     res.json({
       user: {
@@ -108,7 +116,7 @@ app.get('/api/me', async (req, res) => {
       tenant,
     });
   } catch (error) {
-    console.error('GET /me Error:', error.message);
+    console.error('[GET /me] Exception:', error.stack);
     res.status(500).json({ error: 'Failed to load user profile' });
   }
 });
