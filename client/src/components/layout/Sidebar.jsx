@@ -259,6 +259,27 @@ export default function Sidebar() {
           </div>
         )}
 
+        {/* Impersonation Back-link for Super Admins on Tenant Sites */}
+        {!isSystemOwner && hasPermission('*') && (
+          <div className="nav-section" style={{ 
+            background: 'var(--color-primary-subtle)', 
+            padding: '1rem', 
+            borderRadius: 'var(--radius-lg)',
+            margin: '0 0.5rem 1rem 0.5rem',
+            border: '1px solid var(--color-primary-hover)'
+          }}>
+            <div className="nav-section-title" style={{ color: 'var(--color-primary)', marginTop: 0 }}>SYSTEM ACCESS</div>
+            <a
+              href={`${window.location.protocol}//admin.${window.location.host.split('.').slice(-2).join('.')}/system-admin`}
+              className="sidebar-link"
+              style={{ paddingLeft: '0.75rem' }}
+            >
+              <span className="sidebar-icon">👑</span>
+              <span className="sidebar-label" style={{ color: 'var(--color-primary)', fontWeight: '700' }}>Back to Super Admin</span>
+            </a>
+          </div>
+        )}
+
         {(() => {
           const sections = [];
           let currentModuleId = null;
