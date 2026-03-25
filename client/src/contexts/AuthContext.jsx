@@ -24,7 +24,6 @@ export function AuthProvider({ children }) {
         console.log('[AuthContext] URL Subdomain found:', urlSub);
         localStorage.setItem('tenantSubdomain', urlSub);
       }
-      window.history.replaceState({}, document.title, window.location.pathname);
     }
 
     const token = localStorage.getItem('token');
@@ -44,10 +43,19 @@ export function AuthProvider({ children }) {
       setUser(data.user);
       setTenant(data.tenant);
       setPermissions(data.user.permissions || []);
+      
+      // ONLY CLEAN URL AFTER SUCCESS!
+      if (urlToken) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     } catch (err) {
       console.error('[AuthContext] Session hydration FAILED:', err.response?.status, err.response?.data);
-      localStorage.removeItem('token');
-      localStorage.removeItem('tenantSubdomain');
+      // Don't wipe everything immediately on minor errors
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('tenantSubdomain');
+        setUser(null);
+      }
     } finally {
       setIsLoading(false);
     }
