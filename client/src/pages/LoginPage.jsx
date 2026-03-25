@@ -9,10 +9,19 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login, refreshSession } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading, tenant } = useAuth();
   const navigate = useNavigate();
 
-  // Auto-login is now handled in AuthContext's loadSession to prevent race conditions.
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      if (tenant?.subdomain === 'admin') {
+        navigate('/system-admin');
+      } else {
+        navigate('/dashboard');
+      }
+    }
+  }, [isAuthenticated, authLoading, tenant, navigate]);
+
   // LoginPage just renders the form if not authenticated.
   const handleSubmit = async (e) => {
     e.preventDefault();
