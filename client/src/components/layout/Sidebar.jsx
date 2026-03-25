@@ -187,6 +187,14 @@ const navigationConfig = [
     icon: '🔐',
   },
   {
+    id: 'system-admin',
+    title: 'Owner Panel',
+    route: '/system-admin',
+    requiredPermission: null,
+    moduleId: 'administration',
+    icon: '👑',
+  },
+  {
     id: 'settings',
     title: 'System Config',
     route: '/settings',
@@ -205,7 +213,7 @@ export default function Sidebar() {
 
   const authorizedNavigation = useMemo(() => {
     return navigationConfig.filter((item) => {
-      if (isSystemOwner && item.id !== 'settings') {
+      if (isSystemOwner && !['settings', 'system-admin'].includes(item.id)) {
         return false;
       }
       if (item.requiredPermission && !hasPermission(item.requiredPermission)) {
