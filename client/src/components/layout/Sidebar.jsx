@@ -234,52 +234,42 @@ export default function Sidebar() {
             </span>
           </div>
         </div>
-        {!isSystemOwner && <NotificationBell />}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {!isSystemOwner && hasPermission('*') && (
+            <a
+              href={(() => {
+                const token = localStorage.getItem('token');
+                const hostname = window.location.hostname;
+                const protocol = window.location.protocol;
+                const port = window.location.port ? `:${window.location.port}` : '';
+                
+                // Use a more robust base domain detection
+                let baseDomain = 'localhost';
+                if (!hostname.includes('localhost') && hostname !== '127.0.0.1') {
+                   const parts = hostname.split('.');
+                   baseDomain = parts.slice(-2).join('.');
+                }
+                
+                return `${protocol}//admin.${baseDomain}${port}/system-admin?token=${token}&subdomain=admin`;
+              })()}
+              className="notification-btn"
+              style={{ 
+                background: 'var(--color-primary)', 
+                color: 'white',
+                textDecoration: 'none',
+                fontSize: '1.2rem',
+                boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)'
+              }}
+              title="Return to System Owner"
+            >
+              👑
+            </a>
+          )}
+          {!isSystemOwner && <NotificationBell />}
+        </div>
       </div>
 
       <nav className="sidebar-nav">
-        {isSystemOwner && (
-          <div className="nav-section">
-            <div className="nav-section-title">ADMIN PANEL</div>
-            <Link
-              to="/system-admin"
-              className={`sidebar-link ${location.pathname === '/system-admin' ? 'active' : ''}`}
-              style={{ borderBottom: '1px solid var(--color-border)', marginBottom: '0.5rem', paddingBottom: '0.75rem' }}
-            >
-              <span className="sidebar-icon">👑</span>
-              <span className="sidebar-label">Owner Panel</span>
-            </Link>
-            <Link
-              to="/system-settings"
-              className={`sidebar-link ${location.pathname === '/system-settings' ? 'active' : ''}`}
-            >
-              <span className="sidebar-icon">⚙️</span>
-              <span className="sidebar-label">System Settings</span>
-            </Link>
-          </div>
-        )}
-
-        {/* Impersonation Back-link for Super Admins on Tenant Sites */}
-        {!isSystemOwner && hasPermission('*') && (
-          <div className="nav-section" style={{ 
-            background: 'var(--color-primary-subtle)', 
-            padding: '1rem', 
-            borderRadius: 'var(--radius-lg)',
-            margin: '0 0.5rem 1rem 0.5rem',
-            border: '1px solid var(--color-primary-hover)'
-          }}>
-            <div className="nav-section-title" style={{ color: 'var(--color-primary)', marginTop: 0 }}>SYSTEM ACCESS</div>
-            <a
-              href={`${window.location.protocol}//admin.${window.location.host.split('.').slice(-2).join('.')}/system-admin`}
-              className="sidebar-link"
-              style={{ paddingLeft: '0.75rem' }}
-            >
-              <span className="sidebar-icon">👑</span>
-              <span className="sidebar-label" style={{ color: 'var(--color-primary)', fontWeight: '700' }}>Back to Super Admin</span>
-            </a>
-          </div>
-        )}
-
         {(() => {
           const sections = [];
           let currentModuleId = null;
