@@ -17,27 +17,35 @@ export function AuthProvider({ children }) {
     const urlSub = params.get('subdomain');
     
     if (urlToken) {
-      setIsLoading(true); // Ensure loading is true immediately
+      console.log('[AuthContext] URL Token found:', urlToken.substring(0, 10) + '...');
+      setIsLoading(true); 
       localStorage.setItem('token', urlToken);
-      if (urlSub) localStorage.setItem('tenantSubdomain', urlSub);
-      // Clean URL immediately so refresh won't trigger this again
+      if (urlSub) {
+        console.log('[AuthContext] URL Subdomain found:', urlSub);
+        localStorage.setItem('tenantSubdomain', urlSub);
+      }
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
     const token = localStorage.getItem('token');
+    const tenantSubdomain = localStorage.getItem('tenantSubdomain');
+    
     if (!token) {
+      console.log('[AuthContext] No token found in localStorage');
       setIsLoading(false);
       return;
     }
     
-    // x-tenant-id header will be picked up by api.js from localStorage
+    console.log('[AuthContext] Hydrating session for:', tenantSubdomain);
+    
     try {
       const { data } = await api.get('/api/me');
+      console.log('[AuthContext] Session hydrated successfully:', data.user.email);
       setUser(data.user);
       setTenant(data.tenant);
       setPermissions(data.user.permissions || []);
     } catch (err) {
-      console.error('Session load failed:', err);
+      console.error('[AuthContext] Session hydration FAILED:', err.response?.status, err.response?.data);
       localStorage.removeItem('token');
       localStorage.removeItem('tenantSubdomain');
     } finally {
