@@ -11,55 +11,70 @@ const navigationConfig = [
     route: '/dashboard',
     requiredPermission: null,
     icon: '📊',
+    category: 'OVERVIEW',
   },
   {
     id: 'employees',
     title: 'Employees',
     route: '/employees',
     requiredPermission: 'manage_employees',
+    requiredModule: 'hr_payroll',
     icon: '👥',
+    category: 'CORE HR',
   },
   {
     id: 'attendance',
     title: 'Attendance',
     route: '/attendance',
     requiredPermission: null, // All employees can access their own attendance
+    requiredModule: 'hr_payroll',
     icon: '📅',
+    category: 'CORE HR',
   },
   {
     id: 'leaves',
     title: 'Leave Requests',
     route: '/leaves',
     requiredPermission: null,
+    requiredModule: 'hr_payroll',
     icon: '🏖️',
+    category: 'CORE HR',
   },
   {
     id: 'overtime',
     title: 'Overtime',
     route: '/overtime',
     requiredPermission: null,
+    requiredModule: 'hr_payroll',
     icon: '⏳',
+    category: 'CORE HR',
   },
   {
     id: 'payslips',
     title: 'Payslips',
     route: '/payslips',
     requiredPermission: 'view_payroll',
+    requiredModule: 'hr_payroll',
     icon: '💰',
+    category: 'FINANCE',
   },
   {
     id: 'shifts',
     title: 'Shifts',
     route: '/shifts',
     requiredPermission: 'manage_settings',
+    requiredModule: 'hr_payroll',
     icon: '⏱️',
+    category: 'CORE HR',
   },
   {
     id: 'holidays',
     title: 'Holidays',
     route: '/holidays',
     requiredPermission: null,
+    requiredModule: 'hr_payroll',
     icon: '🎉',
+    category: 'CORE HR',
   },
   {
     id: 'roles',
@@ -67,6 +82,7 @@ const navigationConfig = [
     route: '/roles',
     requiredPermission: 'manage_roles',
     icon: '🔐',
+    category: 'ADMINISTRATION',
   },
   {
     id: 'inventory',
@@ -75,6 +91,70 @@ const navigationConfig = [
     requiredPermission: null,
     requiredModule: 'inventory',
     icon: '📦',
+    category: 'OPERATIONS',
+  },
+  {
+    id: 'pos',
+    title: 'POS',
+    route: '/pos',
+    requiredPermission: null,
+    requiredModule: 'pos',
+    icon: '🛒',
+    category: 'OPERATIONS',
+  },
+  {
+    id: 'ledger',
+    title: 'Financial Ledger',
+    route: '/ledger',
+    requiredPermission: 'view_ledger',
+    requiredModule: 'pos',
+    icon: '📜',
+    category: 'OPERATIONS',
+  },
+  {
+    id: 'members',
+    title: 'Members',
+    route: '/employees', // Using employees page for now as a base
+    requiredPermission: 'manage_employees',
+    requiredModule: 'club_management',
+    icon: '👤',
+    category: 'CLUB MEMBERSHIP',
+  },
+  {
+    id: 'memberships',
+    title: 'Membership Tiers',
+    route: '/memberships',
+    requiredPermission: 'manage_settings',
+    requiredModule: 'club_management',
+    icon: '🎫',
+    category: 'CLUB MEMBERSHIP',
+  },
+  {
+    id: 'resources',
+    title: 'Resources (Courts)',
+    route: '/resources',
+    requiredPermission: 'manage_settings',
+    requiredModule: 'club_management',
+    icon: '🏛️',
+    category: 'RESOURCES & BOOKING',
+  },
+  {
+    id: 'bookings',
+    title: 'Court Bookings',
+    route: '/bookings',
+    requiredPermission: null,
+    requiredModule: 'club_management',
+    icon: '🎾',
+    category: 'RESOURCES & BOOKING',
+  },
+  {
+    id: 'access-logs',
+    title: 'Access Logs',
+    route: '/access-logs',
+    requiredPermission: 'manage_settings',
+    requiredModule: 'club_management',
+    icon: '🚪',
+    category: 'RESOURCES & BOOKING',
   },
   {
     id: 'settings',
@@ -82,6 +162,7 @@ const navigationConfig = [
     route: '/settings',
     requiredPermission: 'manage_settings',
     icon: '⚙️',
+    category: 'ADMINISTRATION',
   },
 ];
 
@@ -131,7 +212,8 @@ export default function Sidebar() {
       <nav className="sidebar-nav">
         {/* System Owner Panel links - only for owner */}
         {isSystemOwner && (
-          <>
+          <div className="nav-section">
+            <div className="nav-section-title">ADMIN PANEL</div>
             <Link
               to="/system-admin"
               className={`sidebar-link ${location.pathname === '/system-admin' ? 'active' : ''}`}
@@ -147,22 +229,45 @@ export default function Sidebar() {
               <span className="sidebar-icon">⚙️</span>
               <span className="sidebar-label">System Settings</span>
             </Link>
-          </>
+          </div>
         )}
 
-        {authorizedNavigation.map((item) => {
-          const isActive = location.pathname.startsWith(item.route);
-          return (
-            <Link
-              key={item.id}
-              to={item.route}
-              className={`sidebar-link ${isActive ? 'active' : ''}`}
-            >
-              <span className="sidebar-icon">{item.icon}</span>
-              <span className="sidebar-label">{item.title}</span>
-            </Link>
-          );
-        })}
+        {(() => {
+          const sections = [];
+          let currentCategory = null;
+          
+          authorizedNavigation.forEach((item) => {
+            if (item.category !== currentCategory) {
+              currentCategory = item.category;
+              sections.push({ type: 'header', title: currentCategory });
+            }
+            sections.push({ type: 'link', ...item });
+          });
+
+          return sections.map((sec, idx) => {
+            if (sec.type === 'header') {
+              return (
+                <div key={`head-${idx}`} className="nav-section-title" style={{ 
+                  fontSize: '0.65rem', fontWeight: '700', color: 'var(--color-text-muted)',
+                  marginTop: '1.25rem', marginBottom: '0.5rem', letterSpacing: '0.05em', padding: '0 0.75rem'
+                }}>
+                  {sec.title}
+                </div>
+              );
+            }
+            const isActive = location.pathname.startsWith(sec.route);
+            return (
+              <Link
+                key={sec.id}
+                to={sec.route}
+                className={`sidebar-link ${isActive ? 'active' : ''}`}
+              >
+                <span className="sidebar-icon">{sec.icon}</span>
+                <span className="sidebar-label">{sec.title}</span>
+              </Link>
+            );
+          });
+        })()}
       </nav>
 
       <div className="sidebar-footer">
