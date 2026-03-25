@@ -7,6 +7,7 @@ export default function SystemSettingsPage() {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingPlan, setEditingPlan] = useState(null);
+  const [newPlan, setNewPlan] = useState(null);
   const [updating, setUpdating] = useState(false);
 
   // Available modules for all plans
@@ -40,6 +41,20 @@ export default function SystemSettingsPage() {
     }
   };
 
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    setUpdating(true);
+    try {
+      await api.post('/api/admin/plans', newPlan);
+      setNewPlan(null);
+      fetchPlans();
+    } catch (error) {
+      alert(error.response?.data?.error || 'Failed to create plan');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleUpdate = async (e) => {
     e.preventDefault();
     setUpdating(true);
@@ -54,13 +69,23 @@ export default function SystemSettingsPage() {
     }
   };
 
-  const toggleModule = (moduleKey) => {
-    const isSelected = editingPlan.activeModules.includes(moduleKey);
+  const handleDelete = async (tierName) => {
+    if (!window.confirm(`Are you sure you want to delete the "${tierName}" plan?`)) return;
+    try {
+      await api.delete(`/api/admin/plans/${tierName}`);
+      fetchPlans();
+    } catch (error) {
+      alert(error.response?.data?.error || 'Failed to delete plan');
+    }
+  };
+
+  const toggleModule = (planState, setPlanState, moduleKey) => {
+    const isSelected = planState.activeModules.includes(moduleKey);
     const updatedModules = isSelected
-      ? editingPlan.activeModules.filter(m => m !== moduleKey)
-      : [...editingPlan.activeModules, moduleKey];
+      ? planState.activeModules.filter(m => m !== moduleKey)
+      : [...planState.activeModules, moduleKey];
     
-    setEditingPlan({ ...editingPlan, activeModules: updatedModules });
+    setPlanState({ ...planState, activeModules: updatedModules });
   };
 
   if (tenant?.subdomain !== 'admin') {
@@ -77,9 +102,14 @@ export default function SystemSettingsPage() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <div>
-          <h1>⚙️ System Administration</h1>
-          <p className="page-subtitle">Configure default pricing and module access for standard subscription tiers.</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+          <div>
+            <h1>⚙️ System Administration</h1>
+            <p className="page-subtitle">Configure default pricing and module access for standard subscription tiers.</p>
+          </div>
+          <button className="btn-primary" onClick={() => setNewPlan({ tierName: '', monthlyPrice: 0, activeModules: [], description: '' })}>
+            ➕ Add New Plan
+          </button>
         </div>
       </div>
 
@@ -106,15 +136,21 @@ export default function SystemSettingsPage() {
                     {plan.activeModules.length === 0 && <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>None</span>}
                   </div>
                 </div>
-                <button className="btn-secondary" style={{ width: '100%' }} onClick={() => setEditingPlan({ ...plan })}>
-                  ✏️ Edit Defaults
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setEditingPlan({ ...plan })}>
+                    ✏️ Edit
+                  </button>
+                  <button className="btn-danger" style={{ padding: '0 0.75rem' }} onClick={() => handleDelete(plan.tierName)} title="Delete Plan">
+                    🗑️
+                  </button>
+                </div>
               </div>
             </div>
           ))
         )}
       </div>
 
+      {/* Edit Modal */}
       {editingPlan && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '600px' }}>
@@ -149,14 +185,14 @@ export default function SystemSettingsPage() {
                     <label key={mod.key} style={{
                       display: 'flex', alignItems: 'center', gap: '0.5rem',
                       padding: '0.5rem 0.75rem', borderRadius: '6px',
-                      background: editingPlan.activeModules.includes(mod.key) ? 'rgba(99, 102, 241, 0.15)' : 'var(--color-bg-hover)',
+                      background: editingPlan.activeModules.includes(mod.key) ? 'rgba(79, 70, 229, 0.15)' : 'var(--color-surface-hover)',
                       border: `1px solid ${editingPlan.activeModules.includes(mod.key) ? 'var(--color-primary)' : 'var(--color-border)'}`,
                       cursor: 'pointer', fontSize: '0.85rem'
                     }}>
                       <input
                         type="checkbox"
                         checked={editingPlan.activeModules.includes(mod.key)}
-                        onChange={() => toggleModule(mod.key)}
+                        onChange={() => toggleModule(editingPlan, setEditingPlan, mod.key)}
                       />
                       {mod.label}
                     </label>
@@ -168,6 +204,79 @@ export default function SystemSettingsPage() {
                   {updating ? 'Saving...' : 'Save Configuration'}
                 </button>
                 <button type="button" className="btn-secondary" onClick={() => setEditingPlan(null)} style={{ flex: 1 }}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Plan Modal */}
+      {newPlan && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h3>➕ Add New Subscription Plan</h3>
+              <button className="btn-close" onClick={() => setNewPlan(null)}>✕</button>
+            </div>
+            <form onSubmit={handleCreate} className="modal-body">
+              <div className="form-group">
+                <label>Plan Name (e.g., Gold, Startup)</label>
+                <input
+                  type="text"
+                  className="select-input"
+                  value={newPlan.tierName}
+                  onChange={e => setNewPlan({ ...newPlan, tierName: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
+                  placeholder="name_will_be_slugified"
+                  required
+                />
+              </div>
+              <div className="form-group" style={{ marginTop: '1rem' }}>
+                <label>Monthly Price (₱)</label>
+                <input
+                  type="number"
+                  className="select-input"
+                  value={newPlan.monthlyPrice}
+                  onChange={e => setNewPlan({ ...newPlan, monthlyPrice: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group" style={{ marginTop: '1rem' }}>
+                <label>Description</label>
+                <input
+                  type="text"
+                  className="select-input"
+                  value={newPlan.description || ''}
+                  onChange={e => setNewPlan({ ...newPlan, description: e.target.value })}
+                />
+              </div>
+              <div className="form-group" style={{ marginTop: '1.5rem' }}>
+                <label>Select Initial Modules</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  {availableModules.map(mod => (
+                    <label key={mod.key} style={{
+                      display: 'flex', alignItems: 'center', gap: '0.5rem',
+                      padding: '0.5rem 0.75rem', borderRadius: '6px',
+                      background: newPlan.activeModules.includes(mod.key) ? 'rgba(79, 70, 229, 0.15)' : 'var(--color-surface-hover)',
+                      border: `1px solid ${newPlan.activeModules.includes(mod.key) ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                      cursor: 'pointer', fontSize: '0.85rem'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={newPlan.activeModules.includes(mod.key)}
+                        onChange={() => toggleModule(newPlan, setNewPlan, mod.key)}
+                      />
+                      {mod.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+                <button type="submit" className="btn-primary" disabled={updating} style={{ flex: 1 }}>
+                  {updating ? 'Creating Plan...' : 'Create Plan'}
+                </button>
+                <button type="button" className="btn-secondary" onClick={() => setNewPlan(null)} style={{ flex: 1 }}>
                   Cancel
                 </button>
               </div>

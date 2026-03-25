@@ -39,7 +39,7 @@ const Tenant = sequelize.define('Tenant', {
     defaultValue: null,
   },
   subscriptionTier: {
-    type: DataTypes.ENUM('free', 'pro', 'enterprise', 'custom'),
+    type: DataTypes.STRING,
     defaultValue: 'free',
   },
   settings: {

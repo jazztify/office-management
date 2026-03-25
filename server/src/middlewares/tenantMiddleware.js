@@ -6,7 +6,6 @@ const tenantMiddleware = async (req, res, next) => {
     let tenantId = req.headers['x-tenant-id'];
     
     if (!tenantId) {
-      console.log('tenantMiddleware: Missing x-tenant-id header');
       return res.status(403).json({ error: 'Forbidden: Missing tenant header' });
     }
 

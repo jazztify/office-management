@@ -14,6 +14,14 @@ const Holiday = require('./Holiday');
 const Notification = require('./Notification');
 const Payslip = require('./Payslip');
 const SubscriptionPlan = require('./SubscriptionPlan');
+const Product = require('./Product');
+const Wallet = require('./Wallet');
+const Transaction = require('./Transaction');
+const Order = require('./Order');
+const MembershipTier = require('./MembershipTier');
+const Resource = require('./Resource');
+const Booking = require('./Booking');
+const AccessLog = require('./AccessLog');
 
 // --- Associations ---
 
@@ -51,10 +59,52 @@ Notification.belongsTo(Tenant, { foreignKey: 'tenantId' });
 Tenant.hasMany(Payslip, { foreignKey: 'tenantId' });
 Payslip.belongsTo(Tenant, { foreignKey: 'tenantId' });
 
+Tenant.hasMany(Product, { foreignKey: 'tenantId' });
+Product.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
+Tenant.hasMany(Wallet, { foreignKey: 'tenantId' });
+Wallet.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
+Tenant.hasMany(Transaction, { foreignKey: 'tenantId' });
+Transaction.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
+Tenant.hasMany(Order, { foreignKey: 'tenantId' });
+Order.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
+Tenant.hasMany(MembershipTier, { foreignKey: 'tenantId' });
+MembershipTier.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
+Tenant.hasMany(Resource, { foreignKey: 'tenantId' });
+Resource.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
+Tenant.hasMany(Booking, { foreignKey: 'tenantId' });
+Booking.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
+Tenant.hasMany(AccessLog, { foreignKey: 'tenantId' });
+AccessLog.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
 // User & Role (Many-to-Many)
 const UserRoles = sequelize.define('UserRoles', {}, { timestamps: false });
 User.belongsToMany(Role, { through: UserRoles, foreignKey: 'userId' });
 Role.belongsToMany(User, { through: UserRoles, foreignKey: 'roleId' });
+
+// Membership Associations
+MembershipTier.hasMany(User, { foreignKey: 'membershipTierId' });
+User.belongsTo(MembershipTier, { foreignKey: 'membershipTierId' });
+
+// Booking Associations
+User.hasMany(Booking, { foreignKey: 'userId' });
+Booking.belongsTo(User, { foreignKey: 'userId' });
+
+Resource.hasMany(Booking, { foreignKey: 'resourceId' });
+Booking.belongsTo(Resource, { foreignKey: 'resourceId' });
+
+// AccessLog Associations
+User.hasMany(AccessLog, { foreignKey: 'userId' });
+AccessLog.belongsTo(User, { foreignKey: 'userId' });
+
+Resource.hasMany(AccessLog, { foreignKey: 'resourceId' });
+AccessLog.belongsTo(Resource, { foreignKey: 'resourceId' });
 
 // User & EmployeeProfile
 User.hasOne(EmployeeProfile, { foreignKey: 'userId' });
@@ -106,6 +156,22 @@ Notification.belongsTo(User, { as: 'recipient', foreignKey: 'recipientId' });
 User.hasMany(Notification, { as: 'sentNotifications', foreignKey: 'senderId' });
 Notification.belongsTo(User, { as: 'sender', foreignKey: 'senderId' });
 
+// Wallet & Transaction Associations
+User.hasOne(Wallet, { foreignKey: 'userId' });
+Wallet.belongsTo(User, { foreignKey: 'userId' });
+
+Wallet.hasMany(Transaction, { foreignKey: 'walletId' });
+Transaction.belongsTo(Wallet, { foreignKey: 'walletId' });
+
+Wallet.hasMany(Order, { foreignKey: 'walletId' });
+Order.belongsTo(Wallet, { foreignKey: 'walletId' });
+
+User.hasMany(Transaction, { as: 'processedTransactions', foreignKey: 'processedBy' });
+Transaction.belongsTo(User, { as: 'processor', foreignKey: 'processedBy' });
+
+User.hasMany(Order, { as: 'processedOrders', foreignKey: 'processedBy' });
+Order.belongsTo(User, { as: 'orderProcessor', foreignKey: 'processedBy' });
+
 module.exports = {
   sequelize,
   Tenant,
@@ -121,6 +187,14 @@ module.exports = {
   Notification,
   Payslip,
   SubscriptionPlan,
+  Product,
+  Wallet,
+  Transaction,
+  Order,
+  MembershipTier,
+  Resource,
+  Booking,
+  AccessLog,
   UserRoles,
   EmployeeShifts
 };

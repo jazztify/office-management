@@ -22,6 +22,12 @@ const overtimeRoutes = require('./src/routes/overtimeRoutes');
 const shiftRoutes = require('./src/routes/shiftRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const earlyOutRoutes = require('./src/routes/earlyOutRoutes');
+const productRoutes = require('./src/routes/productRoutes');
+const walletRoutes = require('./src/routes/walletRoutes');
+const transactionRoutes = require('./src/routes/transactionRoutes');
+const membershipRoutes = require('./src/routes/membershipRoutes');
+const bookingRoutes = require('./src/routes/bookingRoutes');
+const accessRoutes = require('./src/routes/accessRoutes');
 
 const app = express();
 
@@ -53,7 +59,7 @@ app.get('/api/me', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const tenant = await Tenant.findByPk(req.user.tenantId, {
+    const tenant = await Tenant.findByPk(req.tenantId, {
       attributes: ['_id', 'name', 'subdomain', 'activeModules', 'subscriptionTier', 'logoUrl']
     });
 
@@ -100,6 +106,14 @@ app.use('/api/early-out', earlyOutRoutes);
 // ─── HR Modules ──────────────────────────────────────────────
 app.use('/api/payslips', checkPermission('view_payroll'), payslipRoutes);
 app.use('/api/holidays', holidayRoutes);
+
+// ─── POS & Wallet Modules ───────────────────────────────────
+app.use('/api/products', requireModule('inventory'), productRoutes);
+app.use('/api/wallets', walletRoutes);
+app.use('/api/pos', requireModule('pos'), transactionRoutes);
+app.use('/api/memberships', requireModule('memberships'), membershipRoutes);
+app.use('/api/bookings', requireModule('bookings'), bookingRoutes);
+app.use('/api/access', requireModule('access_control'), accessRoutes);
 
 // ─── Entitlement-Gated Premium Modules ───────────────────────
 app.get('/api/v1/payroll', checkPermission('view_payroll'), (req, res) => {

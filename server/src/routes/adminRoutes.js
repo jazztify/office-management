@@ -265,6 +265,25 @@ router.get('/telemetry', async (req, res) => {
 });
 
 /**
+ * POST /api/admin/plans
+ */
+router.post('/plans', async (req, res) => {
+  try {
+    const { tierName, monthlyPrice, activeModules, description } = req.body;
+    const plan = await SubscriptionPlan.create({
+      tierName,
+      monthlyPrice,
+      activeModules: activeModules || [],
+      description
+    });
+    res.status(201).json(plan);
+  } catch (err) {
+    console.error('POST /admin/plans Error:', err.message);
+    res.status(500).json({ error: 'Failed to create plan' });
+  }
+});
+
+/**
  * GET /api/admin/plans
  */
 router.get('/plans', async (req, res) => {
@@ -303,6 +322,23 @@ router.patch('/plans/:tierName', async (req, res) => {
   } catch (err) {
     console.error('PATCH /admin/plans Error:', err.message);
     res.status(500).json({ error: 'Failed to update plan' });
+  }
+});
+
+/**
+ * DELETE /api/admin/plans/:tierName
+ */
+router.delete('/plans/:tierName', async (req, res) => {
+  try {
+    const { tierName } = req.params;
+    const deletedCount = await SubscriptionPlan.destroy({ where: { tierName } });
+    if (deletedCount === 0) {
+      return res.status(404).json({ error: 'Plan not found' });
+    }
+    res.json({ message: 'Plan deleted successfully' });
+  } catch (err) {
+    console.error('DELETE /admin/plans Error:', err.message);
+    res.status(500).json({ error: 'Failed to delete plan' });
   }
 });
 

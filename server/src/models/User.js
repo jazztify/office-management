@@ -27,6 +27,22 @@ const User = sequelize.define('User', {
     type: DataTypes.BOOLEAN,
     defaultValue: true,
   },
+  membershipTierId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'MembershipTiers',
+      key: '_id',
+    },
+  },
+  membershipExpiresAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  rfidCardNumber: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
 }, {
   timestamps: true,
   indexes: [

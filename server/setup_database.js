@@ -1,5 +1,6 @@
 const { 
   Tenant, User, Role, EmployeeProfile, SubscriptionPlan, 
+  Product, Wallet, Transaction, Order,
   sequelize 
 } = require('./src/models');
 const { hashPassword } = require('./src/services/authService');

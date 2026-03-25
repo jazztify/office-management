@@ -8,7 +8,7 @@ const SubscriptionPlan = sequelize.define('SubscriptionPlan', {
     primaryKey: true,
   },
   tierName: {
-    type: DataTypes.ENUM('free', 'pro', 'enterprise'),
+    type: DataTypes.STRING,
     allowNull: false,
     unique: true,
   },
