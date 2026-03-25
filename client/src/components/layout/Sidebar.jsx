@@ -4,14 +4,23 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import NotificationBell from '../shared/NotificationBell';
 
+const MODULE_HEADERS = {
+  dashboard: 'OVERVIEW',
+  hr_payroll: 'HR & PAYROLL',
+  inventory: 'INVENTORY MANAGEMENT',
+  pos: 'SALES & POS',
+  club_management: 'CLUB & BOOKING',
+  administration: 'ADMINISTRATION'
+};
+
 const navigationConfig = [
   {
     id: 'dashboard',
     title: 'Dashboard',
     route: '/dashboard',
     requiredPermission: null,
+    moduleId: 'dashboard',
     icon: '📊',
-    category: 'OVERVIEW',
   },
   {
     id: 'employees',
@@ -19,17 +28,17 @@ const navigationConfig = [
     route: '/employees',
     requiredPermission: 'manage_employees',
     requiredModule: 'hr_payroll',
+    moduleId: 'hr_payroll',
     icon: '👥',
-    category: 'CORE HR',
   },
   {
     id: 'attendance',
     title: 'Attendance',
     route: '/attendance',
-    requiredPermission: null, // All employees can access their own attendance
+    requiredPermission: null,
     requiredModule: 'hr_payroll',
+    moduleId: 'hr_payroll',
     icon: '📅',
-    category: 'CORE HR',
   },
   {
     id: 'leaves',
@@ -37,8 +46,8 @@ const navigationConfig = [
     route: '/leaves',
     requiredPermission: null,
     requiredModule: 'hr_payroll',
+    moduleId: 'hr_payroll',
     icon: '🏖️',
-    category: 'CORE HR',
   },
   {
     id: 'overtime',
@@ -46,8 +55,8 @@ const navigationConfig = [
     route: '/overtime',
     requiredPermission: null,
     requiredModule: 'hr_payroll',
+    moduleId: 'hr_payroll',
     icon: '⏳',
-    category: 'CORE HR',
   },
   {
     id: 'payslips',
@@ -55,8 +64,8 @@ const navigationConfig = [
     route: '/payslips',
     requiredPermission: 'view_payroll',
     requiredModule: 'hr_payroll',
+    moduleId: 'hr_payroll',
     icon: '💰',
-    category: 'FINANCE',
   },
   {
     id: 'shifts',
@@ -64,8 +73,8 @@ const navigationConfig = [
     route: '/shifts',
     requiredPermission: 'manage_settings',
     requiredModule: 'hr_payroll',
+    moduleId: 'hr_payroll',
     icon: '⏱️',
-    category: 'CORE HR',
   },
   {
     id: 'holidays',
@@ -73,16 +82,16 @@ const navigationConfig = [
     route: '/holidays',
     requiredPermission: null,
     requiredModule: 'hr_payroll',
+    moduleId: 'hr_payroll',
     icon: '🎉',
-    category: 'CORE HR',
   },
   {
     id: 'roles',
     title: 'Roles & Permissions',
     route: '/roles',
     requiredPermission: 'manage_roles',
+    moduleId: 'administration',
     icon: '🔐',
-    category: 'ADMINISTRATION',
   },
   {
     id: 'inventory',
@@ -90,8 +99,8 @@ const navigationConfig = [
     route: '/inventory',
     requiredPermission: null,
     requiredModule: 'inventory',
+    moduleId: 'inventory',
     icon: '📦',
-    category: 'OPERATIONS',
   },
   {
     id: 'pos',
@@ -99,8 +108,8 @@ const navigationConfig = [
     route: '/pos',
     requiredPermission: null,
     requiredModule: 'pos',
+    moduleId: 'pos',
     icon: '🛒',
-    category: 'OPERATIONS',
   },
   {
     id: 'ledger',
@@ -108,17 +117,17 @@ const navigationConfig = [
     route: '/ledger',
     requiredPermission: 'view_ledger',
     requiredModule: 'pos',
+    moduleId: 'pos',
     icon: '📜',
-    category: 'OPERATIONS',
   },
   {
     id: 'members',
     title: 'Members',
-    route: '/employees', // Using employees page for now as a base
+    route: '/employees',
     requiredPermission: 'manage_employees',
     requiredModule: 'club_management',
+    moduleId: 'club_management',
     icon: '👤',
-    category: 'CLUB MEMBERSHIP',
   },
   {
     id: 'memberships',
@@ -126,8 +135,8 @@ const navigationConfig = [
     route: '/memberships',
     requiredPermission: 'manage_settings',
     requiredModule: 'club_management',
+    moduleId: 'club_management',
     icon: '🎫',
-    category: 'CLUB MEMBERSHIP',
   },
   {
     id: 'resources',
@@ -135,8 +144,8 @@ const navigationConfig = [
     route: '/resources',
     requiredPermission: 'manage_settings',
     requiredModule: 'club_management',
+    moduleId: 'club_management',
     icon: '🏛️',
-    category: 'RESOURCES & BOOKING',
   },
   {
     id: 'bookings',
@@ -144,8 +153,8 @@ const navigationConfig = [
     route: '/bookings',
     requiredPermission: null,
     requiredModule: 'club_management',
+    moduleId: 'club_management',
     icon: '🎾',
-    category: 'RESOURCES & BOOKING',
   },
   {
     id: 'access-logs',
@@ -153,16 +162,16 @@ const navigationConfig = [
     route: '/access-logs',
     requiredPermission: 'manage_settings',
     requiredModule: 'club_management',
+    moduleId: 'club_management',
     icon: '🚪',
-    category: 'RESOURCES & BOOKING',
   },
   {
     id: 'settings',
     title: 'Settings',
     route: '/settings',
     requiredPermission: 'manage_settings',
+    moduleId: 'administration',
     icon: '⚙️',
-    category: 'ADMINISTRATION',
   },
 ];
 
@@ -175,7 +184,6 @@ export default function Sidebar() {
 
   const authorizedNavigation = useMemo(() => {
     return navigationConfig.filter((item) => {
-      // System Owner manages companies, they don't use HR features
       if (isSystemOwner && item.id !== 'settings') {
         return false;
       }
@@ -205,12 +213,10 @@ export default function Sidebar() {
             </span>
           </div>
         </div>
-        {/* Notification Bell */}
         {!isSystemOwner && <NotificationBell />}
       </div>
 
       <nav className="sidebar-nav">
-        {/* System Owner Panel links - only for owner */}
         {isSystemOwner && (
           <div className="nav-section">
             <div className="nav-section-title">ADMIN PANEL</div>
@@ -234,12 +240,12 @@ export default function Sidebar() {
 
         {(() => {
           const sections = [];
-          let currentCategory = null;
+          let currentModuleId = null;
           
           authorizedNavigation.forEach((item) => {
-            if (item.category !== currentCategory) {
-              currentCategory = item.category;
-              sections.push({ type: 'header', title: currentCategory });
+            if (item.moduleId !== currentModuleId) {
+              currentModuleId = item.moduleId;
+              sections.push({ type: 'header', title: MODULE_HEADERS[currentModuleId] });
             }
             sections.push({ type: 'link', ...item });
           });
