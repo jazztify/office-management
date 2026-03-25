@@ -12,10 +12,17 @@ export default function SystemSettingsPage() {
 
   // Available modules for all plans
   const availableModules = [
-    { key: 'hr_payroll', label: '👔 HR & Payroll' },
-    { key: 'inventory', label: '📦 Inventory' },
-    { key: 'pos', label: '🛒 Point of Sale' },
-    { key: 'club_management', label: '🏟️ Club Mgmt' },
+    { key: 'pos', label: '🛒 Universal POS & Shift' },
+    { key: 'wallet', label: '💳 Digital Wallet & Ledger' },
+    { key: 'returns', label: '🔄 Returns & RMA' },
+    { key: 'hr_payroll', label: '👔 HR, Payroll & Commissions' },
+    { key: 'inventory', label: '📦 Advanced Inventory' },
+    { key: 'club_management', label: '🏸 Club Memberships' },
+    { key: 'bookings', label: '📅 Booking & Scheduling' },
+    { key: 'access_control', label: '🚪 Access Control (IoT)' },
+    { key: 'crm', label: '📧 CRM & Marketing' },
+    { key: 'loyalty', label: '🎁 Loyalty & Rewards' },
+    { key: 'user_portal', label: '📱 End-User Portal' },
   ];
 
   useEffect(() => {

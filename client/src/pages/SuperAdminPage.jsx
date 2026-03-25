@@ -3,21 +3,38 @@ import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTenant } from '../contexts/TenantContext';
 
-const DEFAULT_MODS = ['hr_payroll', 'club_management'];
+const DEFAULT_MODS = ['hr_payroll', 'club_management', 'pos', 'inventory'];
 
 const MODULE_CATEGORIES = [
   {
-    title: '👥 People & Operations',
+    title: '💳 Commerce & Finance',
     modules: [
-      { key: 'hr_payroll', label: 'HR & Payroll' },
-      { key: 'club_management', label: 'Club Mgmt' },
+      { key: 'pos', label: 'Universal POS & Shift' },
+      { key: 'wallet', label: 'Digital Wallet & Ledger' },
+      { key: 'returns', label: 'Returns & RMA' },
     ]
   },
   {
-    title: '📦 Commerce',
+    title: '📦 People & Operations',
     modules: [
-      { key: 'inventory', label: 'Inventory' },
-      { key: 'pos', label: 'Point of Sale' },
+      { key: 'hr_payroll', label: 'HR & Payroll' },
+      { key: 'inventory', label: 'Advanced Inventory' },
+    ]
+  },
+  {
+    title: '🏸 Gym & Service Specific',
+    modules: [
+      { key: 'club_management', label: 'Club Memberships' },
+      { key: 'bookings', label: 'Booking & Scheduling' },
+      { key: 'access_control', label: 'Access Control (IoT)' },
+    ]
+  },
+  {
+    title: '🤝 Customer Engagement',
+    modules: [
+      { key: 'crm', label: 'CRM & Marketing' },
+      { key: 'loyalty', label: 'Loyalty & Rewards' },
+      { key: 'user_portal', label: 'End-User Portal' },
     ]
   }
 ];
@@ -45,10 +62,17 @@ export default function SuperAdminPage() {
   const [activeTab, setActiveTab] = useState('general');
 
   const MODULE_ICONS = {
+    pos: '🛒',
+    wallet: '💳',
+    returns: '🔄',
     hr_payroll: '👔',
     inventory: '📦',
-    pos: '🛒',
-    club_management: '🏟️'
+    club_management: '🏸',
+    bookings: '📅',
+    access_control: '🚪',
+    crm: '📧',
+    loyalty: '🎁',
+    user_portal: '📱'
   };
 
   useEffect(() => {

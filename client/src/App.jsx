@@ -65,6 +65,8 @@ function PublicRoute() {
   return <Outlet />;
 }
 
+import ModulePlaceholder from './components/shared/ModulePlaceholder';
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -96,6 +98,48 @@ export default function App() {
             <Route path="/resources" element={<ResourcesPage />} />
             <Route path="/bookings" element={<BookingsPage />} />
             <Route path="/access-logs" element={<AccessLogsPage />} />
+
+            {/* Placeholder Demo Modules */}
+            <Route path="/wallet" element={
+              <ModulePlaceholder 
+                title="Digital Wallet" 
+                icon="💳"
+                headline="Cashless Ecosystem. Total Financial Control."
+                features={['Member Top-ups & Balances', 'Transaction Ledger', 'Zero-Credit Prevention']}
+              />
+            } />
+            <Route path="/returns" element={
+              <ModulePlaceholder 
+                title="Returns & RMA" 
+                icon="🔄"
+                headline="Fix Financial Friction. Master Returns."
+                features={['Store Credit Issuance', 'RMA Tracking', 'Automatic Ledger Reversal']}
+              />
+            } />
+            <Route path="/crm" element={
+              <ModulePlaceholder 
+                title="CRM & Marketing" 
+                icon="📧"
+                headline="Your Silent Salesperson. Automated Growth."
+                features={['SMS/Email Expiry Alerts', 'Customer Segmentation', 'Automated Re-engagement']}
+              />
+            } />
+            <Route path="/loyalty" element={
+              <ModulePlaceholder 
+                title="Loyalty & Rewards" 
+                icon="🎁"
+                headline="Gamify Customer Retention. Build Your Hook."
+                features={['Points-per-Spend Tracking', 'Lifetime Value Metrics', 'Automated Discount Codes']}
+              />
+            } />
+            <Route path="/portal-settings" element={
+              <ModulePlaceholder 
+                title="End-User Portal" 
+                icon="📱"
+                headline="Empower Your Members. 24/7 Access."
+                features={['Mobile balance check', 'Self-Service Bookings', 'Digital Membership Card']}
+              />
+            } />
           </Route>
 
           {/* Fallback */}

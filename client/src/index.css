@@ -2225,3 +2225,142 @@ input, select, textarea {
   background: #2563eb;
 }
 
+
+/* ─── Module Placeholders (Billboard) ─────────────────────── */
+.module-placeholder-wrapper {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 120px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  background: var(--color-bg);
+}
+
+.module-placeholder-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: blur(80px);
+  opacity: 0.5;
+}
+
+.bg-blob {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+}
+
+.blob-1 {
+  background: var(--color-primary);
+  left: 20%;
+  top: 20%;
+  animation: float 10s infinite alternate;
+}
+
+.blob-2 {
+  background: #a855f7;
+  right: 20%;
+  bottom: 20%;
+  animation: float 12s infinite alternate-reverse;
+}
+
+@keyframes float {
+  from { transform: translate(0, 0); }
+  to { transform: translate(10%, 10%); }
+}
+
+.billboard-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 600px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: var(--radius-2xl);
+  padding: 3rem;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+  animation: slideUp 0.6s ease-out;
+}
+
+.billboard-badge {
+  margin-bottom: 2rem;
+}
+
+.badge-pill {
+  background: var(--color-primary);
+  color: #fff;
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4); }
+  50% { transform: scale(1.05); box-shadow: 0 4px 20px rgba(99, 102, 241, 0.6); }
+  100% { transform: scale(1); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4); }
+}
+
+.billboard-icon {
+  font-size: 3.5rem;
+  margin-bottom: 1rem;
+}
+
+.billboard-title {
+  font-size: 0.9rem;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.billboard-headline {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: var(--color-text);
+  line-height: 1.2;
+  margin-bottom: 2rem;
+  letter-spacing: -0.02em;
+}
+
+.billboard-features {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 2.5rem;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.feature-check {
+  color: var(--color-success);
+}
+
+.billboard-footer {
+  border-top: 1px solid var(--color-border);
+  padding-top: 1.5rem;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
