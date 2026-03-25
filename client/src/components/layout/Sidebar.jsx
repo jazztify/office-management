@@ -192,6 +192,7 @@ const navigationConfig = [
     route: '/system-admin',
     requiredPermission: null,
     moduleId: 'administration',
+    systemOnly: true,
     icon: '👑',
   },
   {
@@ -200,7 +201,17 @@ const navigationConfig = [
     route: '/system-settings',
     requiredPermission: null,
     moduleId: 'administration',
+    systemOnly: true,
     icon: '🏢', // Changed icon to distinguish from tenant settings
+  },
+  {
+    id: 'modules-guide',
+    title: 'Modules Guide',
+    route: '/modules-guide',
+    requiredPermission: null,
+    moduleId: 'administration',
+    systemOnly: true,
+    icon: '📚',
   },
   {
     id: 'settings',
@@ -221,9 +232,14 @@ export default function Sidebar() {
 
   const authorizedNavigation = useMemo(() => {
     return navigationConfig.filter((item) => {
-      // Allow dashboard and tenant settings for Super Admin too
+      // Platform admin items are strictly restricted to the "admin" workspace
+      if (item.systemOnly && !isSystemOwner) {
+        return false;
+      }
+
+      // If in the System Owner panel, restrict view to only administrative tools + dashboard/settings
       if (isSystemOwner) {
-        if (['dashboard', 'settings', 'system-settings', 'system-admin'].includes(item.id)) return true;
+        if (['dashboard', 'settings', 'system-settings', 'system-admin', 'modules-guide'].includes(item.id)) return true;
         return false;
       }
       

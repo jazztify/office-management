@@ -23,6 +23,7 @@ import MembershipsPage from './pages/MembershipsPage';
 import ResourcesPage from './pages/ResourcesPage';
 import BookingsPage from './pages/BookingsPage';
 import AccessLogsPage from './pages/AccessLogsPage';
+import ModulesGuidePage from './pages/ModulesGuidePage';
 
 function ProtectedLayout() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -98,6 +99,7 @@ export default function App() {
             <Route path="/resources" element={<ResourcesPage />} />
             <Route path="/bookings" element={<BookingsPage />} />
             <Route path="/access-logs" element={<AccessLogsPage />} />
+            <Route path="/modules-guide" element={<ModulesGuidePage />} />
 
             {/* Placeholder Demo Modules */}
             <Route path="/wallet" element={
