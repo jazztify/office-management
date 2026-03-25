@@ -5,7 +5,7 @@ const { tenantMiddleware } = require('./src/middlewares/tenantMiddleware');
 const { jwtAuthMiddleware } = require('./src/middlewares/jwtAuthMiddleware');
 const { checkPermission } = require('./src/middlewares/checkPermission');
 const { requireModule } = require('./src/middlewares/requireModule');
-const { User, Tenant, EmployeeProfile } = require('./src/models');
+const { User, Tenant, EmployeeProfile, Department, Position } = require('./src/models');
 
 // Import route modules
 const authRoutes = require('./src/routes/authRoutes');
@@ -13,6 +13,9 @@ const userRoutes = require('./src/routes/userRoutes');
 const employeeRoutes = require('./src/routes/employeeRoutes');
 const attendanceRoutes = require('./src/routes/attendanceRoutes');
 const leaveRoutes = require('./src/routes/leaveRoutes');
+const deductionRoutes = require('./src/routes/deductionRoutes');
+const departmentRoutes = require('./src/routes/departmentRoutes');
+const positionRoutes = require('./src/routes/positionRoutes');
 const roleRoutes = require('./src/routes/roleRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const payslipRoutes = require('./src/routes/payslipRoutes');
@@ -28,6 +31,7 @@ const transactionRoutes = require('./src/routes/transactionRoutes');
 const membershipRoutes = require('./src/routes/membershipRoutes');
 const bookingRoutes = require('./src/routes/bookingRoutes');
 const accessRoutes = require('./src/routes/accessRoutes');
+const scheduleRoutes = require('./src/routes/scheduleRoutes');
 
 const app = express();
 
@@ -95,7 +99,12 @@ app.get('/api/me', async (req, res) => {
 
     const employee = await EmployeeProfile.findOne({ 
       where: { userId: req.user._id },
-      attributes: ['_id', 'firstName', 'lastName']
+      attributes: ['_id', 'firstName', 'lastName'],
+      include: [
+        { model: EmployeeProfile, as: 'manager', attributes: ['firstName', 'lastName'] },
+        { model: Department, attributes: ['name', 'color'] },
+        { model: Position, attributes: ['name'] }
+      ]
     });
 
     const roles = req.user.Roles || [];
@@ -127,6 +136,9 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/overtime', overtimeRoutes);
 app.use('/api/leaves', leaveRoutes);
+app.use('/api/deductions', deductionRoutes);
+app.use('/api/departments', departmentRoutes);
+app.use('/api/positions', positionRoutes);
 app.use('/api/roles', checkPermission('manage_roles'), roleRoutes);
 app.use('/api/settings', checkPermission('manage_settings'), settingsRoutes);
 app.use('/api/shifts', shiftRoutes);
@@ -136,14 +148,16 @@ app.use('/api/early-out', earlyOutRoutes);
 // ─── HR Modules ──────────────────────────────────────────────
 app.use('/api/payslips', checkPermission('view_payroll'), payslipRoutes);
 app.use('/api/holidays', holidayRoutes);
+app.use('/api/deductions', deductionRoutes);
 
 // ─── POS & Wallet Modules ───────────────────────────────────
 app.use('/api/products', requireModule('inventory'), productRoutes);
 app.use('/api/wallets', walletRoutes);
 app.use('/api/pos', requireModule('pos'), transactionRoutes);
-app.use('/api/memberships', requireModule('memberships'), membershipRoutes);
+app.use('/api/memberships', requireModule('club_management'), membershipRoutes);
 app.use('/api/bookings', requireModule('bookings'), bookingRoutes);
 app.use('/api/access', requireModule('access_control'), accessRoutes);
+app.use('/api/schedules', requireModule('hr_payroll'), scheduleRoutes);
 
 // ─── Entitlement-Gated Premium Modules ───────────────────────
 app.get('/api/v1/payroll', checkPermission('view_payroll'), (req, res) => {

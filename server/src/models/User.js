@@ -39,9 +39,9 @@ const User = sequelize.define('User', {
     type: DataTypes.DATE,
     allowNull: true,
   },
-  rfidCardNumber: {
-    type: DataTypes.STRING,
-    allowNull: true,
+  membershipStatus: {
+    type: DataTypes.ENUM('ACTIVE', 'INACTIVE', 'EXPIRED', 'PASTDUE', 'SUSPENDED'),
+    defaultValue: 'INACTIVE',
   },
 }, {
   timestamps: true,

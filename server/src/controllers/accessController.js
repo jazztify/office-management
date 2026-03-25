@@ -1,4 +1,4 @@
-const { AccessLog, User, MembershipTier, Booking } = require('../models');
+const { AccessLog, User, MembershipTier, Booking, EmployeeProfile, WorkSchedule, AttendanceLog, Shift } = require('../models');
 const { Op } = require('sequelize');
 
 /**
@@ -77,6 +77,38 @@ exports.verifyAccess = async (req, res) => {
       status: 'GRANTED',
       deviceIdentifier: rfidCardNumber
     });
+
+    // ─── HR INTEGRATION: Auto-Attendance ───
+    const employee = await EmployeeProfile.findOne({ where: { userId: user._id, tenantId: req.tenantId } });
+    if (employee) {
+      const todayString = new Date().toISOString().split('T')[0];
+      const schedule = await WorkSchedule.findOne({
+        where: { employeeId: employee._id, date: todayString, tenantId: req.tenantId },
+        include: [{ model: Shift }]
+      });
+
+      if (schedule) {
+        // Find or create attendance log for today
+        const [attendance, created] = await AttendanceLog.findOrCreate({
+          where: { employeeId: employee._id, date: todayString, tenantId: req.tenantId },
+          defaults: { clockIn: new Date() }
+        });
+
+        if (!created && attendance.clockIn) {
+          // If already clocked in, update clock out (continuous tracking)
+          await attendance.update({ clockOut: new Date() });
+        } else if (created && schedule.Shift) {
+          // Calculate lateness on first clock-in
+          const shiftStart = new Date(`${todayString}T${schedule.Shift.startTime}:00`);
+          const actualIn = new Date();
+          if (actualIn > shiftStart) {
+            const diffMs = actualIn - shiftStart;
+            const lateMinutes = Math.floor(diffMs / (1000 * 60));
+            await attendance.update({ lateMinutes });
+          }
+        }
+      }
+    }
 
     res.json({ 
       access: 'GRANTED', 

@@ -27,9 +27,25 @@ const AccessLog = sequelize.define('AccessLog', {
   },
   resourceId: {
     type: DataTypes.UUID,
-    allowNull: true, // Optional: if tracking entry to a specific court
+    allowNull: true, 
     references: {
       model: 'Resources',
+      key: '_id',
+    },
+  },
+  deviceId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'IotDevices',
+      key: '_id',
+    },
+  },
+  hardwareTokenId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'HardwareTokens',
       key: '_id',
     },
   },

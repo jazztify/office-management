@@ -1,6 +1,6 @@
 const express = require('express');
 const { Op } = require('sequelize');
-const { AttendanceLog, EmployeeProfile, EarlyOutRequest, Tenant } = require('../models');
+const { AttendanceLog, EmployeeProfile, EarlyOutRequest, Tenant, HardwareToken, User, OverrideLog, Department, Position } = require('../models');
 
 const router = express.Router();
 
@@ -197,6 +197,126 @@ router.post('/punch', async (req, res) => {
 });
 
 /**
+ * POST /api/attendance/punch-rfid
+ * Triggered by IoT hardware
+ */
+router.post('/punch-rfid', async (req, res) => {
+  try {
+    const { tokenValue, deviceId } = req.body;
+    if (!tokenValue) return res.status(400).json({ error: 'tokenValue is required' });
+
+    // Find token and associated user
+    const token = await HardwareToken.findOne({ 
+      where: { tokenValue, status: 'ACTIVE' },
+      include: [{ model: User, include: [EmployeeProfile] }]
+    });
+
+    if (!token || !token.User || !token.User.EmployeeProfile) {
+      return res.status(404).json({ error: 'Valid token or employee not found.' });
+    }
+
+    const employee = token.User.EmployeeProfile;
+    const tenantId = token.tenantId;
+    const today = getTodayDate();
+    const now = new Date();
+
+    // Verify IoT Device exists and is ONLINE
+    const device = deviceId ? await IotDevice.findByPk(deviceId) : null;
+    if (deviceId && (!device || device.status !== 'ONLINE')) {
+      return res.status(400).json({ error: 'IoT Device is offline or unauthorized.' });
+    }
+
+    const tenant = await Tenant.findByPk(tenantId);
+    const settings = tenant?.settings || {};
+    
+    let record = await AttendanceLog.findOne({ where: { employeeId: employee._id, date: today } });
+
+    let action = '';
+    if (!record) {
+      record = await AttendanceLog.create({
+        tenantId,
+        employeeId: employee._id,
+        date: today,
+        clockIn: now,
+        ipAddress: `IOT-${device?.name || 'UNKNOWN'}-${deviceId || 'RFID'}`,
+      });
+      action = 'clock-in';
+    } else if (!record.lunchOut && settings.autoLunch) {
+       record.lunchOut = now;
+       action = 'lunch-out';
+    } else if (record.lunchOut && !record.lunchIn) {
+       record.lunchIn = now;
+       action = 'lunch-in';
+    } else if (!record.clockOut) {
+      record.clockOut = now;
+      action = 'clock-out';
+    } else {
+      return res.status(400).json({ error: 'Daily attendance already completed.' });
+    }
+
+    const metrics = computeMetrics(record, settings);
+    Object.assign(record, metrics);
+    await record.save();
+
+    res.status(200).json({
+      message: `${employee.firstName} ${action} recorded via ${token.type} (${token.tokenValue.slice(-4)})`,
+      record
+    });
+  } catch (err) {
+    console.error('RFID Punch Error:', err.message);
+    res.status(500).json({ error: 'Internal server error during RFID punch' });
+  }
+});
+
+/**
+ * PATCH /api/attendance/:id
+ * Admin manual override with OverrideLog tracking
+ */
+router.patch('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { clockIn, clockOut, status, remarks, reason } = req.body;
+    
+    if (!req.user.permissions?.includes('manage_employees') && !req.user.permissions?.includes('*')) {
+      return res.status(403).json({ error: 'Unauthorized manual override.' });
+    }
+
+    const record = await AttendanceLog.findByPk(id);
+    if (!record) return res.status(404).json({ error: 'Record not found.' });
+
+    const fieldsToUpdate = { clockIn, clockOut, status, remarks };
+    const tenant = await Tenant.findByPk(req.tenantId);
+    const settings = tenant?.settings || {};
+
+    for (const [key, value] of Object.entries(fieldsToUpdate)) {
+      if (value !== undefined && record[key] !== value) {
+        // Log the override
+        await OverrideLog.create({
+          tenantId: req.tenantId,
+          attendanceLogId: record._id,
+          adminId: req.user._id,
+          fieldName: key,
+          oldValue: record[key]?.toString() || 'NULL',
+          newValue: value?.toString() || 'NULL',
+          reason: reason || 'Manual adjustment by admin',
+        });
+        record[key] = value;
+      }
+    }
+
+    // Recalculate metrics after manual edits
+    const metrics = computeMetrics(record, settings);
+    Object.assign(record, metrics);
+    await record.save();
+
+    res.json({ message: 'Attendance record updated and override logged.', record });
+  } catch (err) {
+    console.error('Attendance Patch Error:', err.message);
+    res.status(500).json({ error: 'Failed to update attendance' });
+  }
+});
+
+/**
  * GET /api/attendance/my-today
  */
 router.get('/my-today', async (req, res) => {
@@ -268,7 +388,11 @@ router.get('/', async (req, res) => {
     let { employeeId, startDate, endDate, page = 1, limit = 50 } = req.query;
     const filter = { tenantId: req.tenantId };
 
-    if (!req.user.permissions || (!req.user.permissions.includes('manage_employees') && !req.user.permissions.includes('*'))) {
+    const isHR = req.user.permissions?.includes('manage_employees') || 
+                 req.user.permissions?.includes('*') || 
+                 req.user.permissions?.includes('hr_payroll');
+
+    if (!req.user.permissions || !isHR) {
       const emp = await EmployeeProfile.findOne({ where: { userId: req.user._id } });
       if (!emp) return res.json({ records: [], pagination: { total: 0 } });
       employeeId = emp._id;
@@ -283,7 +407,17 @@ router.get('/', async (req, res) => {
 
     const { count, rows } = await AttendanceLog.findAndCountAll({
       where: filter,
-      include: [{ model: EmployeeProfile, attributes: ['firstName', 'lastName', 'department', 'position'] }],
+      include: [
+        { 
+          model: EmployeeProfile, 
+          as: 'employeeProfile',
+          attributes: ['firstName', 'lastName'],
+          include: [
+            { model: Department, attributes: ['name'] },
+            { model: Position, attributes: ['name'] }
+          ]
+        }
+      ],
       order: [['date', 'DESC']],
       offset: (page - 1) * limit,
       limit: parseInt(limit)

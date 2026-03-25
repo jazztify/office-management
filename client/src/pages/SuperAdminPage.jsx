@@ -40,6 +40,145 @@ const MODULE_CATEGORIES = [
   }
 ];
 
+const MODULE_ICONS = {
+  pos: '🛒',
+  wallet: '💳',
+  returns: '🔄',
+  hr_payroll: '👔',
+  inventory: '📦',
+  club_management: '🏸',
+  bookings: '📅',
+  access_control: '🚪',
+  crm: '📧',
+  loyalty: '🎁',
+  user_portal: '📱',
+  social_marketing: '🚀'
+};
+
+const TenantModal = ({ isOpen, onClose, data, onChange, onSubmit, isEditing, loading, activeTab, setActiveTab, plans }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: '800px' }}>
+        <div className="modal-header">
+          <h3>{isEditing ? '✏️ Edit Company' : '🏢 Register New Company'}</h3>
+          <button className="btn-close" onClick={onClose}>✕</button>
+        </div>
+        
+        <div className="tab-container" style={{ marginTop: '1rem', padding: '0 2rem' }}>
+          {['general', 'modules', 'billing'].map(tab => (
+            <button 
+              key={tab}
+              className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab === 'general' ? 'General Info' : tab === 'modules' ? 'Modules' : 'Billing'}
+            </button>
+          ))}
+        </div>
+
+        <div className="modal-body" style={{ minHeight: '350px' }}>
+          {activeTab === 'general' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }} className="fade-in">
+              <div>
+                <h4 className="form-subsection">Company Details</h4>
+                <div className="form-group">
+                  <label>Company Name *</label>
+                  <input type="text" value={data.name} onChange={e => onChange({ ...data, name: e.target.value })} required placeholder="e.g. Acme Corp" />
+                </div>
+                {!isEditing && (
+                  <div className="form-group">
+                    <label>Workspace Subdomain *</label>
+                    <div className="input-with-suffix">
+                      <input type="text" value={data.subdomain} onChange={e => onChange({ ...data, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })} required placeholder="acme" />
+                      <div className="input-suffix">.app</div>
+                    </div>
+                  </div>
+                )}
+                <div className="form-group" style={{ marginTop: '1rem' }}>
+                  <label>Logo Preview</label>
+                  <input type="file" accept="image/*" onChange={e => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => onChange({...data, logoUrl: reader.result});
+                      reader.readAsDataURL(file);
+                    }
+                  }} />
+                  {data.logoUrl && <img src={data.logoUrl} style={{ width: '48px', height: '48px', objectFit: 'contain', marginTop: '8px' }} />}
+                </div>
+              </div>
+              {!isEditing && (
+                <div>
+                  <h4 className="form-subsection">Initial Admin Credentials</h4>
+                  <div className="form-group">
+                    <label>Admin Email *</label>
+                    <input type="email" value={data.adminEmail} onChange={e => onChange({ ...data, adminEmail: e.target.value })} required placeholder="admin@acme.com" />
+                  </div>
+                  <div className="form-group">
+                    <label>Temporary Password *</label>
+                    <input type="text" value={data.adminPassword} onChange={e => onChange({ ...data, adminPassword: e.target.value })} required placeholder="Welcome123!" />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'modules' && (
+            <div className="fade-in">
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem' }}>Select which features are active for this branch.</p>
+              <div className="module-grid">
+                {MODULE_CATEGORIES.flatMap(c => c.modules).map(mod => {
+                  const selected = data.activeModules.includes(mod.key);
+                  return (
+                    <div key={mod.key} className={`module-card ${selected ? 'selected' : ''}`} onClick={() => {
+                      const updated = selected ? data.activeModules.filter(m => m !== mod.key) : [...data.activeModules, mod.key];
+                      onChange({ ...data, activeModules: updated });
+                    }}>
+                      <div className="module-card-header">
+                        <span className="module-icon">{MODULE_ICONS[mod.key] || '📦'}</span>
+                        <div className="module-check">{selected && '✓'}</div>
+                      </div>
+                      <span className="module-label">{mod.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'billing' && (
+            <div style={{ maxWidth: '400px' }} className="fade-in">
+              <h4 className="form-subsection">Subscription Tier</h4>
+              <div className="form-group">
+                <label>Plan Tier</label>
+                <select className="select-input" value={data.subscriptionTier} onChange={e => onChange({ ...data, subscriptionTier: e.target.value })}>
+                  {plans.map(p => <option key={p._id} value={p.tierName}>{p.tierName.toUpperCase()}</option>)}
+                  <option value="custom">CUSTOM RATE</option>
+                </select>
+              </div>
+              {data.subscriptionTier === 'custom' && (
+                 <div className="form-group" style={{ marginTop: '1.5rem' }}>
+                  <label>Monthly Price (₱) *</label>
+                  <input type="number" value={data.customPrice} onChange={e => onChange({ ...data, customPrice: e.target.value })} required placeholder="0.00" />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="modal-footer">
+          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-primary" disabled={loading} onClick={onSubmit}>
+            {loading ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create Company')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function SuperAdminPage() {
   const { tenant } = useTenant();
   const { user, refreshSession } = useAuth();
@@ -59,23 +198,7 @@ export default function SuperAdminPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({ name: '', logoUrl: '', subscriptionTier: 'free', activeModules: [], customPrice: '' });
   const [updating, setUpdating] = useState(false);
-  
   const [activeTab, setActiveTab] = useState('general');
-
-  const MODULE_ICONS = {
-    pos: '🛒',
-    wallet: '💳',
-    returns: '🔄',
-    hr_payroll: '👔',
-    inventory: '📦',
-    club_management: '🏸',
-    bookings: '📅',
-    access_control: '🚪',
-    crm: '📧',
-    loyalty: '🎁',
-    user_portal: '📱',
-    social_marketing: '🚀'
-  };
 
   useEffect(() => {
     if (tenant?.subdomain === 'admin') {
@@ -146,129 +269,6 @@ export default function SuperAdminPage() {
     }
   };
 
-  const TenantModal = ({ isOpen, onClose, data, onChange, onSubmit, isEditing, loading: modalLoading }) => {
-    if (!isOpen) return null;
-
-    return (
-      <div className="modal-overlay">
-        <div className="modal-content" style={{ maxWidth: '800px' }}>
-          <div className="modal-header">
-            <h3>{isEditing ? '✏️ Edit Company' : '🏢 Register New Company'}</h3>
-            <button className="btn-close" onClick={onClose}>✕</button>
-          </div>
-          
-          <div className="tab-container" style={{ marginTop: '1rem', padding: '0 2rem' }}>
-            {['general', 'modules', 'billing'].map(tab => (
-              <button 
-                key={tab}
-                className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab)}
-              >
-                {tab === 'general' ? 'General Info' : tab === 'modules' ? 'Modules' : 'Billing'}
-              </button>
-            ))}
-          </div>
-
-          <div className="modal-body" style={{ minHeight: '350px' }}>
-            {activeTab === 'general' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }} className="fade-in">
-                <div>
-                  <h4 className="form-subsection">Company Details</h4>
-                  <div className="form-group">
-                    <label>Company Name *</label>
-                    <input type="text" value={data.name} onChange={e => onChange({ ...data, name: e.target.value })} required placeholder="e.g. Acme Corp" />
-                  </div>
-                  {!isEditing && (
-                    <div className="form-group">
-                      <label>Workspace Subdomain *</label>
-                      <div className="input-with-suffix">
-                        <input type="text" value={data.subdomain} onChange={e => onChange({ ...data, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })} required placeholder="acme" />
-                        <div className="input-suffix">.app</div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="form-group" style={{ marginTop: '1rem' }}>
-                    <label>Logo Preview</label>
-                    <input type="file" accept="image/*" onChange={e => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => onChange({...data, logoUrl: reader.result});
-                        reader.readAsDataURL(file);
-                      }
-                    }} />
-                    {data.logoUrl && <img src={data.logoUrl} style={{ width: '48px', height: '48px', objectFit: 'contain', marginTop: '8px' }} />}
-                  </div>
-                </div>
-                {!isEditing && (
-                  <div>
-                    <h4 className="form-subsection">Initial Admin Credentials</h4>
-                    <div className="form-group">
-                      <label>Admin Email *</label>
-                      <input type="email" value={data.adminEmail} onChange={e => onChange({ ...data, adminEmail: e.target.value })} required placeholder="admin@acme.com" />
-                    </div>
-                    <div className="form-group">
-                      <label>Temporary Password *</label>
-                      <input type="text" value={data.adminPassword} onChange={e => onChange({ ...data, adminPassword: e.target.value })} required placeholder="Welcome123!" />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'modules' && (
-              <div className="fade-in">
-                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem' }}>Select which features are active for this branch.</p>
-                <div className="module-grid">
-                  {MODULE_CATEGORIES.flatMap(c => c.modules).map(mod => {
-                    const selected = data.activeModules.includes(mod.key);
-                    return (
-                      <div key={mod.key} className={`module-card ${selected ? 'selected' : ''}`} onClick={() => {
-                        const updated = selected ? data.activeModules.filter(m => m !== mod.key) : [...data.activeModules, mod.key];
-                        onChange({ ...data, activeModules: updated });
-                      }}>
-                        <div className="module-card-header">
-                          <span className="module-icon">{MODULE_ICONS[mod.key] || '📦'}</span>
-                          <div className="module-check">{selected && '✓'}</div>
-                        </div>
-                        <span className="module-label">{mod.label}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'billing' && (
-              <div style={{ maxWidth: '400px' }} className="fade-in">
-                <h4 className="form-subsection">Subscription Tier</h4>
-                <div className="form-group">
-                  <label>Plan Tier</label>
-                  <select className="select-input" value={data.subscriptionTier} onChange={e => onChange({ ...data, subscriptionTier: e.target.value })}>
-                    {plans.map(p => <option key={p._id} value={p.tierName}>{p.tierName.toUpperCase()}</option>)}
-                    <option value="custom">CUSTOM RATE</option>
-                  </select>
-                </div>
-                {data.subscriptionTier === 'custom' && (
-                   <div className="form-group" style={{ marginTop: '1.5rem' }}>
-                    <label>Monthly Price (₱) *</label>
-                    <input type="number" value={data.customPrice} onChange={e => onChange({ ...data, customPrice: e.target.value })} required placeholder="0.00" />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="modal-footer">
-            <button className="btn-secondary" onClick={onClose}>Cancel</button>
-            <button className="btn-primary" disabled={modalLoading} onClick={onSubmit}>
-              {modalLoading ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create Company')}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="page-container">
@@ -448,6 +448,9 @@ export default function SuperAdminPage() {
         onSubmit={handleCreate}
         isEditing={false}
         loading={creating}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        plans={plans}
       />
 
       <TenantModal 
@@ -458,6 +461,9 @@ export default function SuperAdminPage() {
         onSubmit={handleUpdate}
         isEditing={true}
         loading={updating}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        plans={plans}
       />
     </div>
   );

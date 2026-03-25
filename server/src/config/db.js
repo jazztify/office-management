@@ -25,7 +25,7 @@ const connectDB = async () => {
     
     // In a real migration, we'd use migrations, 
     // but for this task we'll use sync() to ensure tables exist.
-    // await sequelize.sync({ alter: true }); 
+    await sequelize.sync({ alter: true }); 
     
     return sequelize;
   } catch (error) {

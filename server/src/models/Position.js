@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 
-const Product = sequelize.define('Product', {
+const Position = sequelize.define('Position', {
   _id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
@@ -13,7 +13,22 @@ const Product = sequelize.define('Product', {
     references: {
       model: 'Tenants',
       key: '_id',
-      onDelete: 'CASCADE',
+    },
+  },
+  departmentId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'Departments',
+      key: '_id',
+    },
+  },
+  roleId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'Roles',
+      key: '_id',
     },
   },
   name: {
@@ -24,38 +39,29 @@ const Product = sequelize.define('Product', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
-  sku: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
-  price: {
+  salaryRangeMin: {
     type: DataTypes.DECIMAL(15, 2),
-    allowNull: false,
     defaultValue: 0,
   },
-  stockLevel: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
+  salaryRangeMax: {
+    type: DataTypes.DECIMAL(15, 2),
     defaultValue: 0,
   },
-  imageUrl: {
-    type: DataTypes.STRING,
+  parentPositionId: {
+    type: DataTypes.UUID,
     allowNull: true,
+    references: {
+      model: 'Positions',
+      key: '_id',
+    },
   },
-  category: {
-    type: DataTypes.STRING,
+  permissions: {
+    type: DataTypes.JSONB,
     allowNull: true,
-  },
-  isActive: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true,
-  },
-  isCommissioned: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false,
-  },
+    defaultValue: []
+  }
 }, {
   timestamps: true,
 });
 
-module.exports = Product;
+module.exports = Position;

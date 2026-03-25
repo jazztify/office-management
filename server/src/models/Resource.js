@@ -21,7 +21,7 @@ const Resource = sequelize.define('Resource', {
     allowNull: false, // e.g., Court 1, VIP Room, Coach Juan
   },
   type: {
-    type: DataTypes.ENUM('COURT', 'ROOM', 'COACH', 'EQUIPMENT', 'OTHER'),
+    type: DataTypes.ENUM('COURT', 'ROOM', 'COACH', 'EQUIPMENT', 'OTHER'), // Separated from IotDevice hardware
     allowNull: false,
     defaultValue: 'COURT',
   },

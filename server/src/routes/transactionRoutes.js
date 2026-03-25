@@ -1,5 +1,5 @@
 const express = require('express');
-const { Product, Wallet, Transaction, Order, sequelize } = require('../models');
+const { Product, Wallet, Transaction, Order, WorkSchedule, Shift, EmployeeProfile, CommissionLedger, sequelize } = require('../models');
 const { checkPermission } = require('../middlewares/checkPermission');
 
 const router = express.Router();
@@ -12,6 +12,44 @@ router.post('/checkout', checkPermission('process_pos'), async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { userId, items } = req.body; // items: [{ productId, quantity }]
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+
+    // --- Shift Enforcement ---
+    // If user is not a super-admin, check if they are within their shift
+    const isSuperAdmin = req.user.permissions?.includes('*');
+    if (!isSuperAdmin) {
+      const employee = await EmployeeProfile.findOne({ where: { userId: req.user._id } });
+      if (employee) {
+        const schedule = await WorkSchedule.findOne({
+          where: { employeeId: employee._id, date: today },
+          include: [Shift]
+        });
+
+        if (!schedule || !schedule.Shift) {
+          return res.status(403).json({ error: 'No shift scheduled for today. Access denied.' });
+        }
+
+        const [startH, startM] = schedule.Shift.startTime.split(':').map(Number);
+        const shiftStart = new Date(now);
+        shiftStart.setHours(startH, startM, 0, 0);
+
+        // Allow 15 mins before shift start
+        const allowedStart = new Date(shiftStart.getTime() - 15 * 60 * 1000);
+        
+        const [endH, endM] = schedule.Shift.endTime.split(':').map(Number);
+        const shiftEnd = new Date(now);
+        shiftEnd.setHours(endH, endM, 0, 0);
+
+        if (now < allowedStart || now > shiftEnd) {
+          return res.status(403).json({ 
+            error: `Shift Enforcement: Your credentials are only active 15 mins before ${schedule.Shift.startTime} until ${schedule.Shift.endTime}.` 
+          });
+        }
+      }
+    }
+    // -------------------------
+
 
     if (!userId || !items || !items.length) {
       return res.status(400).json({ error: 'userId and items are required' });
@@ -86,7 +124,7 @@ router.post('/checkout', checkPermission('process_pos'), async (req, res) => {
     }, { transaction: t });
 
     // 6. Create Transaction record
-    await Transaction.create({
+    const transactionRecord = await Transaction.create({
       tenantId: req.tenantId,
       walletId: wallet._id,
       type: 'PURCHASE',
@@ -95,6 +133,29 @@ router.post('/checkout', checkPermission('process_pos'), async (req, res) => {
       description: `POS purchase: ${orderItems.map(i => i.name).join(', ')}`,
       processedBy: req.user._id,
     }, { transaction: t });
+
+    // 7. Handle Commissions
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const product = await Product.findByPk(item.productId, { transaction: t });
+      
+      if (product.isCommissioned && item.coachId) {
+        const itemTotal = parseFloat(product.price) * item.quantity;
+        const coachShare = (itemTotal * 0.70).toFixed(2);
+        const clubShare = (itemTotal * 0.30).toFixed(2);
+
+        await CommissionLedger.create({
+          tenantId: req.tenantId,
+          transactionId: transactionRecord._id,
+          coachId: item.coachId,
+          serviceType: product.category || 'Service',
+          amount: itemTotal,
+          coachShare,
+          clubShare,
+          status: 'PENDING',
+        }, { transaction: t });
+      }
+    }
 
     await t.commit();
     res.json({

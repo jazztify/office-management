@@ -7,7 +7,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import EmployeesPage from './pages/EmployeesPage';
 import LeavesPage from './pages/LeavesPage';
-import RolesPage from './pages/RolesPage';
+import HRSettingsPage from './pages/HRSettingsPage';
 import PayslipPage from './pages/PayslipPage';
 import HolidaysPage from './pages/HolidaysPage';
 import AttendancePage from './pages/AttendancePage';
@@ -24,6 +24,10 @@ import ResourcesPage from './pages/ResourcesPage';
 import BookingsPage from './pages/BookingsPage';
 import AccessLogsPage from './pages/AccessLogsPage';
 import ModulesGuidePage from './pages/ModulesGuidePage';
+import MembersPage from './pages/MembersPage';
+import RosterPage from './pages/RosterPage';
+import EmployeeHierarchyPage from './pages/EmployeeHierarchyPage';
+import AttendanceLogsPage from './pages/AttendanceLogsPage';
 
 function ProtectedLayout() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -82,11 +86,13 @@ export default function App() {
           <Route element={<ProtectedLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/employees" element={<EmployeesPage />} />
+            <Route path="/past-employees" element={<EmployeesPage />} />
             <Route path="/leaves" element={<LeavesPage />} />
-            <Route path="/roles" element={<RolesPage />} />
+            <Route path="/hr-settings" element={<HRSettingsPage />} />
             <Route path="/payslips" element={<PayslipPage />} />
             <Route path="/holidays" element={<HolidaysPage />} />
             <Route path="/attendance" element={<AttendancePage />} />
+            <Route path="/attendance-logs" element={<AttendanceLogsPage />} />
             <Route path="/overtime" element={<OvertimePage />} />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/pos" element={<POSPage />} />
@@ -100,6 +106,9 @@ export default function App() {
             <Route path="/bookings" element={<BookingsPage />} />
             <Route path="/access-logs" element={<AccessLogsPage />} />
             <Route path="/modules-guide" element={<ModulesGuidePage />} />
+            <Route path="/members" element={<MembersPage />} />
+            <Route path="/roster" element={<RosterPage />} />
+            <Route path="/employee-tree" element={<EmployeeHierarchyPage />} />
 
             {/* Placeholder Demo Modules */}
             <Route path="/wallet" element={
@@ -152,6 +161,18 @@ export default function App() {
                   'Facebook & Instagram Sync',
                   'YouTube Shorts Integration',
                   'Scheduled Cross-Platform Podcasting'
+                ]}
+              />
+            } />
+            <Route path="/commissions" element={
+              <ModulePlaceholder 
+                title="Commission Ledgers" 
+                icon="⚖️"
+                headline="Performance Tracking. Automated Split Logic."
+                features={[
+                  '70/30 Split Calculations',
+                  'Daily Performance Summaries',
+                  'Automatic Payroll Sync'
                 ]}
               />
             } />

@@ -29,7 +29,9 @@ export default function AttendancePage() {
   // HR: pending early-out requests
   const [pendingEarlyOuts, setPendingEarlyOuts] = useState([]);
 
-  const isHR = user?.permissions?.includes('manage_employees') || user?.permissions?.includes('*');
+  const isHR = user?.permissions?.includes('manage_employees') || 
+               user?.permissions?.includes('*') ||
+               user?.permissions?.includes('hr_payroll');
 
   // Live clock
   useEffect(() => {

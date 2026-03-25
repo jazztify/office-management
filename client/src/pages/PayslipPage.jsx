@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+import './PayslipPage.css';
+
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -170,6 +172,22 @@ export default function PayslipPage() {
       fetchPayslips();
     } catch (err) {
       setError('Failed to update payslip status');
+    }
+  };
+ 
+  const handleDownloadPDF = async (id, filename) => {
+    try {
+      const { data } = await api.get(`/api/payslips/${id}/pdf`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${filename}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error('PDF download error:', err);
+      setError('Failed to download PDF');
     }
   };
 
@@ -346,77 +364,132 @@ export default function PayslipPage() {
         <div className="modal-overlay" onClick={() => setShowDetail(null)}>
           <div className="payslip-detail-card" onClick={(e) => e.stopPropagation()}>
             <div className="payslip-detail-header">
-              <h2>Payslip</h2>
-              <span className={`badge ${getStatusBadge(showDetail.status)}`}>{showDetail.status}</span>
+              <div>
+                <h2>OFFICIAL PAYSLIP</h2>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '0.15rem' }}>
+                  <p className="text-muted" style={{ margin: 0 }}>Serial No: #{showDetail._id.slice(-8).toUpperCase()}</p>
+                  <span className={`badge ${getStatusBadge(showDetail.status)}`} style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem' }}>{showDetail.status}</span>
+                </div>
+              </div>
+              <div className="badge-period">
+                {PAY_PERIOD_LABELS[showDetail.payPeriod] || 'Full Month'} — {MONTHS[(showDetail.period.month || 1) - 1]} {showDetail.period.year}
+              </div>
             </div>
+
             <div className="payslip-detail-info">
               <div className="detail-row">
-                <span>Employee</span>
-                <strong>{showDetail.employeeId?.firstName} {showDetail.employeeId?.lastName}</strong>
+                <span>EMPLOYEE NAME</span>
+                <strong>{showDetail.employeeProfile?.firstName} {showDetail.employeeProfile?.lastName}</strong>
               </div>
               <div className="detail-row">
-                <span>Department</span>
-                <strong>{showDetail.employeeId?.department || '—'}</strong>
+                <span>DEPARTMENT / POSITION</span>
+                <strong>{showDetail.employeeProfile?.Department?.name || 'Staff'} / {showDetail.employeeProfile?.Position?.name || 'Staff'}</strong>
               </div>
               <div className="detail-row">
-                <span>Period</span>
-                <strong>{PAY_PERIOD_LABELS[showDetail.payPeriod] || 'Full Month'} — {MONTHS[showDetail.period.month - 1]} {showDetail.period.year}</strong>
+                <span>PAYMENT DATE</span>
+                <strong>{new Date(showDetail.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</strong>
               </div>
             </div>
+
             {showDetail.attendanceSummary && (
-              <div className="payslip-detail-info" style={{ marginTop: '1rem', borderTop: 'none' }}>
+              <div className="payslip-detail-info" style={{ paddingTop: 0, marginTop: '-0.5rem', borderBottom: '1px solid var(--color-border-subtle)', paddingBottom: '1.25rem', marginBottom: '0.5rem' }}>
                 <div className="detail-row">
-                  <span>Work Hours</span>
+                  <span>WORK HOURS</span>
                   <strong>{showDetail.attendanceSummary.totalWorkHours || 0} hrs</strong>
                 </div>
                 <div className="detail-row">
-                  <span>Late Hours</span>
+                  <span>LATE HOURS</span>
                   <strong style={{ color: 'var(--color-danger)' }}>{showDetail.attendanceSummary.totalLateHours || 0} hrs</strong>
                 </div>
                 <div className="detail-row">
-                  <span>Absent</span>
+                  <span>ABSENT DAYS</span>
                   <strong style={{ color: 'var(--color-danger)' }}>{showDetail.attendanceSummary.totalAbsentDays || 0} days</strong>
                 </div>
               </div>
             )}
+
             <div className="payslip-breakdown">
               <div className="breakdown-section">
                 <h4>Earnings</h4>
-                <div className="breakdown-row"><span>Basic Salary</span><span>{formatCurrency(showDetail.basicSalary)}</span></div>
-                <div className="breakdown-row"><span>Housing</span><span>{formatCurrency(showDetail.allowances?.housing)}</span></div>
-                <div className="breakdown-row"><span>Transport</span><span>{formatCurrency(showDetail.allowances?.transport)}</span></div>
-                <div className="breakdown-row"><span>Meal</span><span>{formatCurrency(showDetail.allowances?.meal)}</span></div>
-                {showDetail.allowances?.holidayPay > 0 && <div className="breakdown-row"><span>Holiday Pay</span><span>{formatCurrency(showDetail.allowances?.holidayPay)}</span></div>}
+                <div className="breakdown-row">
+                  <span>Basic Salary</span>
+                  <span>{formatCurrency(showDetail.basicSalary)}</span>
+                </div>
+                {showDetail.allowances?.housing > 0 && (
+                  <div className="breakdown-row"><span>Housing Allowance</span><span>{formatCurrency(showDetail.allowances.housing)}</span></div>
+                )}
+                {showDetail.allowances?.transport > 0 && (
+                  <div className="breakdown-row"><span>Transport Allowance</span><span>{formatCurrency(showDetail.allowances.transport)}</span></div>
+                )}
+                {showDetail.allowances?.meal > 0 && (
+                  <div className="breakdown-row"><span>Meal Allowance</span><span>{formatCurrency(showDetail.allowances.meal)}</span></div>
+                )}
+                {showDetail.allowances?.holidayPay > 0 && (
+                  <div className="breakdown-row"><span>Holiday Pay</span><span>{formatCurrency(showDetail.allowances.holidayPay)}</span></div>
+                )}
                 {showDetail.allowances?.thirteenthMonthPay > 0 && (
-                  <div className="breakdown-row" style={{ color: 'var(--color-success)' }}>
-                    <span>🎄 13th Month Pay</span>
-                    <span>{formatCurrency(showDetail.allowances?.thirteenthMonthPay)}</span>
+                  <div className="breakdown-row">
+                    <span>13th Month Pay</span>
+                    <span>{formatCurrency(showDetail.allowances.thirteenthMonthPay)}</span>
                   </div>
                 )}
-                <div className="breakdown-row total"><span>Gross Pay</span><span>{formatCurrency(showDetail.grossPay)}</span></div>
+                <div className="breakdown-row total">
+                  <span>Gross Pay</span>
+                  <span>{formatCurrency(showDetail.grossPay)}</span>
+                </div>
               </div>
+
               <div className="breakdown-section">
                 <h4>Deductions</h4>
-                <div className="breakdown-row"><span>Tax</span><span>-{formatCurrency(showDetail.deductions?.tax)}</span></div>
-                <div className="breakdown-row"><span>SSS</span><span>-{formatCurrency(showDetail.deductions?.sss)}</span></div>
-                <div className="breakdown-row"><span>PhilHealth</span><span>-{formatCurrency(showDetail.deductions?.philhealth)}</span></div>
-                <div className="breakdown-row"><span>Pag-IBIG</span><span>-{formatCurrency(showDetail.deductions?.pagibig)}</span></div>
-                <div className="breakdown-row"><span>Insurance</span><span>-{formatCurrency(showDetail.deductions?.insurance)}</span></div>
-                {showDetail.deductions?.holidayDeduction > 0 && <div className="breakdown-row"><span>Holiday Deduction</span><span>-{formatCurrency(showDetail.deductions?.holidayDeduction)}</span></div>}
-                <div className="breakdown-row total"><span>Total Deductions</span><span>-{formatCurrency(showDetail.totalDeductions)}</span></div>
+                <div className="breakdown-row">
+                  <span>Withholding Tax</span>
+                  <span>-{formatCurrency(showDetail.deductions?.tax)}</span>
+                </div>
+                <div className="breakdown-row">
+                  <span>SSS / GSIS</span>
+                  <span>-{formatCurrency(showDetail.deductions?.sss)}</span>
+                </div>
+                <div className="breakdown-row">
+                  <span>PhilHealth</span>
+                  <span>-{formatCurrency(showDetail.deductions?.philhealth)}</span>
+                </div>
+                <div className="breakdown-row">
+                  <span>Pag-IBIG</span>
+                  <span>-{formatCurrency(showDetail.deductions?.pagibig)}</span>
+                </div>
+                {showDetail.deductions?.insurance > 0 && (
+                  <div className="breakdown-row"><span>Insurance</span><span>-{formatCurrency(showDetail.deductions.insurance)}</span></div>
+                )}
+                 {showDetail.deductions?.holidayDeduction > 0 && (
+                  <div className="breakdown-row"><span>Holiday Deduction</span><span>-{formatCurrency(showDetail.deductions.holidayDeduction)}</span></div>
+                )}
+                <div className="breakdown-row total">
+                  <span>Total Deductions</span>
+                  <span>-{formatCurrency(showDetail.totalDeductions)}</span>
+                </div>
               </div>
             </div>
+
             <div className="payslip-net">
-              <span>Net Pay</span>
-              <span className="net-amount">{formatCurrency(showDetail.netPay)}</span>
+              <span>NET TAKE-HOME PAY</span>
+              <div className="net-amount">
+                {formatCurrency(showDetail.netPay)}
+              </div>
             </div>
+
             <div className="payslip-detail-actions">
-              {showDetail.status === 'generated' && canGenerate && (
-                <button className="btn-success btn-sm" onClick={() => { handleMarkPaid(showDetail._id); setShowDetail(null); }}>
-                  ✓ Mark as Paid
-                </button>
-              )}
-              <button className="btn-filter" onClick={() => setShowDetail(null)}>Close</button>
+              <button 
+                className="btn-minimal" 
+                onClick={() => setShowDetail(null)}
+              >
+                Close View
+              </button>
+              <button 
+                className="btn-minimal-primary" 
+                onClick={() => handleDownloadPDF(showDetail._id, `Payslip_${showDetail.employeeProfile?.lastName}_${showDetail.period.month}_${showDetail.period.year}`)}
+              >
+                Download PDF
+              </button>
             </div>
           </div>
         </div>
@@ -451,9 +524,9 @@ export default function PayslipPage() {
                 payslips.map((slip) => (
                   <tr key={slip._id}>
                     <td className="cell-primary">
-                      {slip.employeeId?.firstName} {slip.employeeId?.lastName}
+                      {slip.employeeProfile?.firstName} {slip.employeeProfile?.lastName}
                     </td>
-                    <td><span className="badge badge-muted">{slip.employeeId?.department || '—'}</span></td>
+                    <td><span className="badge badge-muted">{slip.employeeProfile?.Department?.name || '—'}</span></td>
                     <td>{MONTHS[(slip.period?.month || 1) - 1]} {slip.period?.year}</td>
                     <td>
                       <span className="badge badge-info">
@@ -471,7 +544,10 @@ export default function PayslipPage() {
                       <div className="action-group">
                         <button className="btn-sm btn-view" onClick={() => setShowDetail(slip)}>View</button>
                         {slip.status === 'generated' && canGenerate && (
-                          <button className="btn-sm btn-success" onClick={() => handleMarkPaid(slip._id)}>Paid</button>
+                          <>
+                            <button className="btn-sm btn-success" onClick={() => handleMarkPaid(slip._id)}>Paid</button>
+                            <button className="btn-sm btn-filter" onClick={() => handleDownloadPDF(slip._id, `Payslip_${slip.employeeProfile?.lastName}_${slip.period.month}_${slip.period.year}`)}>PDF</button>
+                          </>
                         )}
                       </div>
                     </td>

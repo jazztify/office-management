@@ -1,6 +1,7 @@
 const express = require('express');
+const PDFDocument = require('pdfkit');
 const { Op } = require('sequelize');
-const { Payslip, EmployeeProfile, AttendanceLog, Holiday, User } = require('../models');
+const { Payslip, EmployeeProfile, AttendanceLog, Holiday, User, DeductionProfile, Department, Tenant } = require('../models');
 
 const router = express.Router();
 
@@ -12,8 +13,12 @@ router.get('/', async (req, res) => {
   try {
     const { month, year, employeeId, status, payPeriod, page = 1, limit = 50 } = req.query;
     const filter = { tenantId: req.tenantId };
-    if (month) filter.period = { ...filter.period, month: parseInt(month) };
-    if (year) filter.period = { ...filter.period, year: parseInt(year) };
+    if (month || year) {
+      const periodFilter = {};
+      if (month) periodFilter.month = parseInt(month);
+      if (year) periodFilter.year = parseInt(year);
+      filter.period = { [Op.contains]: periodFilter };
+    }
     if (employeeId) filter.employeeId = employeeId;
     if (status) filter.status = status;
     if (payPeriod) filter.payPeriod = payPeriod;
@@ -21,7 +26,12 @@ router.get('/', async (req, res) => {
     const { count, rows } = await Payslip.findAndCountAll({
       where: filter,
       include: [
-        { model: EmployeeProfile, attributes: ['firstName', 'lastName', 'department', 'salary'] },
+        { 
+          model: EmployeeProfile, 
+          as: 'employeeProfile',
+          attributes: ['firstName', 'lastName', 'salary'],
+          include: [{ model: Department, attributes: ['name'] }]
+        },
         { model: User, as: 'generator', attributes: ['email'] }
       ],
       order: [['createdAt', 'DESC']],
@@ -51,7 +61,12 @@ router.get('/:id', async (req, res) => {
   try {
     const payslip = await Payslip.findByPk(req.params.id, {
       include: [
-        { model: EmployeeProfile, attributes: ['firstName', 'lastName', 'department', 'salary'] },
+        { 
+          model: EmployeeProfile, 
+          as: 'employeeProfile',
+          attributes: ['firstName', 'lastName', 'salary'],
+          include: [{ model: Department, attributes: ['name'] }]
+        },
         { model: User, as: 'generator', attributes: ['email'] }
       ]
     });
@@ -169,6 +184,9 @@ router.post('/generate', async (req, res) => {
       });
     }
 
+    const tenant = await Tenant.findByPk(req.tenantId, { attributes: ['settings'] });
+    const globalStatutory = tenant?.settings?.statutoryDeductions || {};
+
     const monthlySalary = parseFloat(employee.salary) || 0;
     const { startDate, endDate } = getPayPeriodDates(month, year, payPeriod);
     const workingDaysInPeriod = getWorkingDays(startDate, endDate);
@@ -240,11 +258,20 @@ router.post('/generate', async (req, res) => {
       thirteenthMonthPay = await calculate13thMonthPay(employeeId, parseInt(year), monthlySalary, req.tenantId);
     }
 
-    // Dynamic SSS/PhilHealth/PagIBIG/Tax logic if not provided or to override
-    const sss = Number(deductions.sss) || Math.min(1350, Math.round(monthlySalary * 0.045));
-    const philhealth = Number(deductions.philhealth) || Math.min(450, Math.round(monthlySalary * 0.025));
-    const pagibig = Number(deductions.pagibig) || 200;
-    const tax = Number(deductions.tax) || Math.round((basicSalary + computedHolidayPay) * 0.12);
+    // Fetch recurring deductions
+    const deductionProfile = await DeductionProfile.findOne({ where: { employeeId, tenantId: req.tenantId } });
+    const fixedTax = deductionProfile ? Number(deductionProfile.monthlyTax || 0) : Number(globalStatutory.monthlyTax || 0);
+    const fixedSss = deductionProfile ? Number(deductionProfile.sssEmployee || 0) : Number(globalStatutory.sssEmployee || 0);
+    const fixedPhilhealth = deductionProfile ? Number(deductionProfile.philhealthEmployee || 0) : Number(globalStatutory.philhealthEmployee || 0);
+    const fixedPagibig = deductionProfile ? Number(deductionProfile.pagibigEmployee || 0) : Number(globalStatutory.pagibigEmployee || 0);
+    const fixedInsurance = deductionProfile ? Number(deductionProfile.insuranceContribution || 0) : Number(globalStatutory.insuranceContribution || 0);
+    const otherFixed = deductionProfile ? Number(deductionProfile.otherFixedDeductions || 0) : Number(globalStatutory.otherFixedDeductions || 0);
+
+    // Dynamic fallback if no fixed values
+    const sss = fixedSss || Math.min(1350, Math.round(monthlySalary * 0.045));
+    const philhealth = fixedPhilhealth || Math.min(450, Math.round(monthlySalary * 0.025));
+    const pagibig = fixedPagibig || 200;
+    const tax = fixedTax || Math.round((basicSalary + computedHolidayPay) * 0.12);
 
     const finalAllowances = {
       housing: Number(allowances.housing) || 0,
@@ -255,14 +282,21 @@ router.post('/generate', async (req, res) => {
       other: Number(allowances.other) || 0,
     };
 
+    const hourlyRate = dailyRate / 8;
+    const lateDeduction = parseFloat((lateMins / 60 * hourlyRate).toFixed(2));
+    const absenceDeduction = parseFloat((totalAbsentDays * dailyRate).toFixed(2));
+
     const finalDeductions = {
       tax,
       insurance: Number(deductions.insurance) || 0,
       sss,
       pagibig,
       philhealth,
+      lateDeduction: (Number(deductions.lateDeduction) || 0) + lateDeduction,
+      absenceDeduction: (Number(deductions.absenceDeduction) || 0) + absenceDeduction,
       holidayDeduction: (Number(deductions.holidayDeduction) || 0) + computedHolidayDed,
-      other: Number(deductions.other) || 0,
+      insurance: (Number(deductions.insurance) || 0) + fixedInsurance,
+      other: (Number(deductions.other) || 0) + otherFixed,
     };
 
     const totalAllowances = Object.values(finalAllowances).reduce((sum, v) => sum + v, 0);
@@ -292,7 +326,12 @@ router.post('/generate', async (req, res) => {
 
     const populated = await Payslip.findByPk(payslip._id, {
       include: [
-        { model: EmployeeProfile, attributes: ['firstName', 'lastName', 'department', 'salary'] },
+        { 
+          model: EmployeeProfile, 
+          as: 'employeeProfile',
+          attributes: ['firstName', 'lastName', 'salary'],
+          include: [{ model: Department, attributes: ['name'] }]
+        },
         { model: User, as: 'generator', attributes: ['email'] }
       ]
     });
@@ -324,6 +363,9 @@ router.post('/generate-bulk', async (req, res) => {
       `${year}-${String(month).padStart(2, '0')}-01`,
       `${year}-${String(month).padStart(2, '0')}-${new Date(year, month, 0).getDate()}`
     );
+
+    const tenant = await Tenant.findByPk(req.tenantId, { attributes: ['settings'] });
+    const globalStatutory = tenant?.settings?.statutoryDeductions || {};
 
     for (const emp of employees) {
       try {
@@ -375,10 +417,19 @@ router.post('/generate-bulk', async (req, res) => {
           thirteenthMonthPay = await calculate13thMonthPay(emp._id, parseInt(year), monthlySalary);
         }
 
-        const empSss = Number(deductions.sss) || Math.min(1350, Math.round(monthlySalary * 0.045));
-        const empPhilhealth = Number(deductions.philhealth) || Math.min(450, Math.round(monthlySalary * 0.025));
-        const empPagibig = Number(deductions.pagibig) || 200;
-        const empTax = Number(deductions.tax) || Math.round((basicSalary + computedHolidayPay) * 0.12);
+        // Fetch recurring deductions
+        const dProf = await DeductionProfile.findOne({ where: { employeeId: emp._id, tenantId: req.tenantId } });
+        const fTax = dProf ? Number(dProf.monthlyTax || 0) : Number(globalStatutory.monthlyTax || 0);
+        const fSss = dProf ? Number(dProf.sssEmployee || 0) : Number(globalStatutory.sssEmployee || 0);
+        const fPh = dProf ? Number(dProf.philhealthEmployee || 0) : Number(globalStatutory.philhealthEmployee || 0);
+        const fPag = dProf ? Number(dProf.pagibigEmployee || 0) : Number(globalStatutory.pagibigEmployee || 0);
+        const fIns = dProf ? Number(dProf.insuranceContribution || 0) : Number(globalStatutory.insuranceContribution || 0);
+        const fOther = dProf ? Number(dProf.otherFixedDeductions || 0) : Number(globalStatutory.otherFixedDeductions || 0);
+
+        const empSss = fSss || Math.min(1350, Math.round(monthlySalary * 0.045));
+        const empPhilhealth = fPh || Math.min(450, Math.round(monthlySalary * 0.025));
+        const empPagibig = fPag || 200;
+        const empTax = fTax || Math.round((basicSalary + computedHolidayPay) * 0.12);
 
         const empAllowances = {
           housing: Number(allowances.housing) || 0,
@@ -389,14 +440,21 @@ router.post('/generate-bulk', async (req, res) => {
           other: Number(allowances.other) || 0,
         };
 
+        const empHourlyRate = dailyRate / 8;
+        const empLateDed = parseFloat((lateMins / 60 * empHourlyRate).toFixed(2));
+        const empAbsDed = parseFloat((totalAbsentDays * dailyRate).toFixed(2));
+
         const empDeductions = {
           tax: empTax,
           insurance: Number(deductions.insurance) || 0,
           sss: empSss,
           pagibig: empPagibig,
           philhealth: empPhilhealth,
+          lateDeduction: empLateDed,
+          absenceDeduction: empAbsDed,
           holidayDeduction: (Number(deductions.holidayDeduction) || 0) + computedHolidayDed,
-          other: Number(deductions.other) || 0,
+          insurance: (Number(deductions.insurance) || 0) + fIns,
+          other: (Number(deductions.other) || 0) + fOther,
         };
 
         const tAllow = Object.values(empAllowances).reduce((s, v) => s + v, 0);
@@ -451,7 +509,12 @@ router.patch('/:id/status', async (req, res) => {
 
     const payslip = await Payslip.findByPk(req.params.id, {
       include: [
-        { model: EmployeeProfile, attributes: ['firstName', 'lastName', 'department', 'salary'] },
+        { 
+          model: EmployeeProfile, 
+          as: 'employeeProfile',
+          attributes: ['firstName', 'lastName', 'salary'],
+          include: [{ model: Department, attributes: ['name'] }]
+        },
         { model: User, as: 'generator', attributes: ['email'] }
       ]
     });
@@ -487,6 +550,89 @@ router.get('/check-duplicate', async (req, res) => {
   } catch (err) {
     console.error('GET /payslips/check-duplicate Error:', err.message);
     res.status(500).json({ error: 'Failed to check duplicate' });
+  }
+});
+
+/**
+ * GET /api/payslips/:id/pdf
+ * Generate PDF version of the payslip
+ */
+router.get('/:id/pdf', async (req, res) => {
+  try {
+    const payslip = await Payslip.findByPk(req.params.id, {
+      include: [
+        { 
+          model: EmployeeProfile,
+          as: 'employeeProfile',
+          include: [{ model: Department, attributes: ['name'] }]
+        },
+        { model: User, as: 'generator', attributes: ['email'] }
+      ]
+    });
+
+    if (!payslip) return res.status(404).json({ error: 'Payslip not found' });
+
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    const filename = `Payslip_${payslip.employeeProfile.lastName}_${payslip.period.month}_${payslip.period.year}.pdf`;
+
+    res.setHeader('Content-disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-type', 'application/pdf');
+
+    doc.pipe(res);
+
+    // --- Header ---
+    doc.fontSize(20).text('PAYSLIP', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(10).text(`Period: ${payslip.payPeriod.replace('_', ' ').toUpperCase()} - ${payslip.period.month}/${payslip.period.year}`, { align: 'center' });
+    doc.moveDown(2);
+
+    // --- Employee Info ---
+    doc.fontSize(12).text(`Employee: ${payslip.employeeProfile.firstName} ${payslip.employeeProfile.lastName}`, { bold: true });
+    doc.fontSize(10).text(`Department: ${payslip.employeeProfile.Department?.name || 'N/A'}`);
+    doc.text(`Salary: ${payslip.employeeProfile.salary || '0.00'}`);
+    doc.moveDown();
+    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+    doc.moveDown();
+
+    // --- Earnings ---
+    doc.fontSize(12).text('EARNINGS', { underline: true });
+    doc.moveDown(0.5);
+    doc.fontSize(10).text(`Basic Salary: ${parseFloat(payslip.basicSalary).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, { indent: 20 });
+    
+    Object.entries(payslip.allowances || {}).forEach(([key, val]) => {
+      if (val > 0) {
+        doc.text(`${key.charAt(0).toUpperCase() + key.slice(1)}: ${val.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, { indent: 20 });
+      }
+    });
+    doc.moveDown();
+    doc.text(`GROSS PAY: ${payslip.grossPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, { bold: true });
+    doc.moveDown();
+
+    // --- Deductions ---
+    doc.fontSize(12).text('DEDUCTIONS', { underline: true });
+    doc.moveDown(0.5);
+    Object.entries(payslip.deductions || {}).forEach(([key, val]) => {
+      if (val > 0) {
+        doc.fontSize(10).text(`${key.charAt(0).toUpperCase() + key.slice(1)}: ${val.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, { indent: 20 });
+      }
+    });
+    doc.moveDown();
+    doc.text(`TOTAL DEDUCTIONS: ${payslip.totalDeductions.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, { bold: true });
+    doc.moveDown();
+
+    // --- Summary ---
+    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+    doc.moveDown();
+    doc.fontSize(14).text(`NET PAY: ${payslip.netPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, { align: 'right', bold: true });
+    
+    doc.moveDown(3);
+    doc.fontSize(8).text(`Generated by: ${payslip.generator?.email || 'System'} on ${new Date().toLocaleString()}`, { align: 'left', color: 'grey' });
+    doc.text('This is a computer-generated document and does not require a signature.', { align: 'center' });
+
+    doc.end();
+  } catch (err) {
+    console.error('PDF Generation Error:', err.message);
+    res.status(500).json({ error: 'Failed to generate PDF payslip' });
   }
 });
 

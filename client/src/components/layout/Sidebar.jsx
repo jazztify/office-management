@@ -18,6 +18,7 @@ const MODULE_HEADERS = {
   loyalty: 'LOYALTY REWARDS',
   user_portal: 'USER SELF-SERVICE',
   social_marketing: 'MULTI-SOCIAL BROADCAST',
+  hr_settings: 'HR SETTINGS',
   administration: 'SYSTEM ADMIN'
 };
 
@@ -69,7 +70,16 @@ const navigationConfig = [
     moduleId: 'returns',
     icon: '🔄',
   },
-  // --- HR & PAYROLL ---
+  // --- PEOPLE & PAYROLL ---
+  {
+    id: 'employee-tree',
+    title: 'Employee Tree',
+    route: '/employee-tree',
+    requiredPermission: 'manage_employees',
+    requiredModule: 'hr_payroll',
+    moduleId: 'hr_payroll',
+    icon: '🌳',
+  },
   {
     id: 'employees',
     title: 'Employee Directory',
@@ -80,6 +90,33 @@ const navigationConfig = [
     icon: '👥',
   },
   {
+    id: 'past-employees',
+    title: 'Past Personnel',
+    route: '/past-employees',
+    requiredPermission: 'manage_employees',
+    requiredModule: 'hr_payroll',
+    moduleId: 'hr_payroll',
+    icon: '📁',
+  },
+  {
+    id: 'roster',
+    title: 'Visual Roster',
+    route: '/roster',
+    requiredPermission: 'manage_employees',
+    requiredModule: 'hr_payroll',
+    moduleId: 'hr_payroll',
+    icon: '🗓️',
+  },
+  {
+    id: 'leaves',
+    title: 'Leave & Time Off',
+    route: '/leaves',
+    requiredPermission: 'manage_employees',
+    requiredModule: 'hr_payroll',
+    moduleId: 'hr_payroll',
+    icon: '🏖️',
+  },
+  {
     id: 'attendance',
     title: 'Attendance & Logs',
     route: '/attendance',
@@ -87,6 +124,43 @@ const navigationConfig = [
     requiredModule: 'hr_payroll',
     moduleId: 'hr_payroll',
     icon: '⌚',
+  },
+  {
+    id: 'attendance-logs',
+    title: 'Global Attendance Logs',
+    route: '/attendance-logs',
+    requiredPermission: 'hr_payroll',
+    requiredModule: 'hr_payroll',
+    moduleId: 'hr_payroll',
+    icon: '👥',
+  },
+  {
+    id: 'commissions',
+    title: 'Commission Ledgers',
+    route: '/commissions',
+    requiredPermission: 'manage_employees',
+    requiredModule: 'hr_payroll',
+    moduleId: 'hr_payroll',
+    icon: '⚖️',
+  },
+  {
+    id: 'payslips',
+    title: 'Payroll & Payslips',
+    route: '/payslips',
+    requiredPermission: 'manage_employees',
+    requiredModule: 'hr_payroll',
+    moduleId: 'hr_payroll',
+    icon: '🧾',
+  },
+  // --- HR SETTINGS ---
+  {
+    id: 'hr-settings',
+    title: 'HR Configuration',
+    route: '/hr-settings',
+    requiredPermission: 'manage_employees',
+    requiredModule: 'hr_payroll',
+    moduleId: 'hr_settings',
+    icon: '⚙️',
   },
   // --- INVENTORY ---
   {
@@ -102,7 +176,7 @@ const navigationConfig = [
   {
     id: 'members',
     title: 'Club Members',
-    route: '/employees', // Using employees as placeholder
+    route: '/members',
     requiredPermission: 'manage_employees',
     requiredModule: 'club_management',
     moduleId: 'club_management',
@@ -179,14 +253,6 @@ const navigationConfig = [
   },
   // --- ADMINISTRATION ---
   {
-    id: 'roles',
-    title: 'Roles & Security',
-    route: '/roles',
-    requiredPermission: 'manage_roles',
-    moduleId: 'administration',
-    icon: '🔐',
-  },
-  {
     id: 'system-admin',
     title: 'Owner Panel',
     route: '/system-admin',
@@ -240,6 +306,10 @@ export default function Sidebar() {
       // If in the System Owner panel, restrict view to only administrative tools + dashboard/settings
       if (isSystemOwner) {
         if (['dashboard', 'settings', 'system-settings', 'system-admin', 'modules-guide'].includes(item.id)) return true;
+        return false;
+      }
+      
+      if (item.superOnly && !hasPermission('*')) {
         return false;
       }
       

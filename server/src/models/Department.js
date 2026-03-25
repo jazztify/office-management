@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 
-const Role = sequelize.define('Role', {
+const Department = sequelize.define('Department', {
   _id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
@@ -20,29 +20,15 @@ const Role = sequelize.define('Role', {
     allowNull: false,
   },
   description: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
     allowNull: true,
-  },
-  isSystemDefault: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false,
-  },
-  permissions: {
-    type: DataTypes.JSONB,
-    defaultValue: [],
   },
   color: {
     type: DataTypes.STRING,
-    defaultValue: '#4f46e5',
-  },
+    defaultValue: '#4f46e5', // Brand default
+  }
 }, {
   timestamps: true,
-  indexes: [
-    {
-      unique: true,
-      fields: ['name', 'tenantId']
-    }
-  ]
 });
 
-module.exports = Role;
+module.exports = Department;

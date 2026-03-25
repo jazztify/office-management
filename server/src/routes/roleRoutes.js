@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { name, description, permissions, isSystemDefault } = req.body;
+    const { name, description, permissions, isSystemDefault, color } = req.body;
 
     if (!name || !permissions || !Array.isArray(permissions)) {
       return res.status(400).json({ error: 'name and permissions array are required' });
@@ -39,6 +39,7 @@ router.post('/', async (req, res) => {
       name,
       description,
       permissions,
+      color: color || '#4f46e5',
       isSystemDefault: isSystemDefault || false,
     });
 
@@ -65,7 +66,7 @@ router.patch('/:id', async (req, res) => {
       return res.status(403).json({ error: 'System default roles cannot be modified' });
     }
 
-    const allowedUpdates = ['name', 'description', 'permissions'];
+    const allowedUpdates = ['name', 'description', 'permissions', 'color'];
     for (const key of allowedUpdates) {
       if (req.body[key] !== undefined) {
         role[key] = req.body[key];

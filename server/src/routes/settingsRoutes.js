@@ -21,6 +21,14 @@ const DEFAULT_SETTINGS = {
     maxHoursPerDay: 4,
   },
   gracePeriod: 15,
+  statutoryDeductions: {
+    monthlyTax: 0,
+    sssEmployee: 0,
+    philhealthEmployee: 0,
+    pagibigEmployee: 0,
+    insuranceContribution: 0,
+    otherFixedDeductions: 0
+  }
 };
 
 /**
@@ -38,6 +46,7 @@ router.get('/', async (req, res) => {
       deductions: { ...DEFAULT_SETTINGS.deductions, ...tenant.settings?.deductions },
       overtime: { ...DEFAULT_SETTINGS.overtime, ...tenant.settings?.overtime },
       gracePeriod: tenant.settings?.gracePeriod ?? DEFAULT_SETTINGS.gracePeriod,
+      statutoryDeductions: { ...DEFAULT_SETTINGS.statutoryDeductions, ...tenant.settings?.statutoryDeductions },
     };
 
     res.json(settings);
@@ -71,6 +80,9 @@ router.patch('/', async (req, res) => {
     }
     if (updates.gracePeriod !== undefined) {
       currentSettings.gracePeriod = updates.gracePeriod;
+    }
+    if (updates.statutoryDeductions) {
+      currentSettings.statutoryDeductions = { ...currentSettings.statutoryDeductions, ...updates.statutoryDeductions };
     }
 
     // Explicitly set the field as modified if it's JSONB

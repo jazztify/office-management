@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 
-const Product = sequelize.define('Product', {
+const IotDevice = sequelize.define('IotDevice', {
   _id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
@@ -20,42 +20,24 @@ const Product = sequelize.define('Product', {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  description: {
-    type: DataTypes.TEXT,
-    allowNull: true,
-  },
-  sku: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
-  price: {
-    type: DataTypes.DECIMAL(15, 2),
+  type: {
+    type: DataTypes.ENUM('TURNSTILE', 'LOCK', 'GATE', 'READER'),
     allowNull: false,
-    defaultValue: 0,
   },
-  stockLevel: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 0,
+  status: {
+    type: DataTypes.ENUM('ONLINE', 'OFFLINE', 'LOCKED'),
+    defaultValue: 'ONLINE',
   },
-  imageUrl: {
+  location: {
     type: DataTypes.STRING,
     allowNull: true,
   },
-  category: {
+  macAddress: {
     type: DataTypes.STRING,
     allowNull: true,
-  },
-  isActive: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true,
-  },
-  isCommissioned: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false,
   },
 }, {
   timestamps: true,
 });
 
-module.exports = Product;
+module.exports = IotDevice;
