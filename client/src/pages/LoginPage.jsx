@@ -22,6 +22,8 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, authLoading, tenant, navigate]);
 
+  const isImpersonating = new URLSearchParams(window.location.search).has('token');
+
   // LoginPage just renders the form if not authenticated.
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,6 +39,20 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  if (authLoading || (isImpersonating && !isAuthenticated)) {
+    return (
+      <div className="login-container">
+        <div className="login-backdrop"></div>
+        <div className="login-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem' }}>
+          <div className="spinner" style={{ width: '40px', height: '40px', border: '3px solid var(--color-primary-subtle)', borderTopColor: 'var(--color-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+          <p style={{ marginTop: '1.5rem', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
+            Authenticating workspace...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="login-container">
