@@ -35,6 +35,7 @@ const MODULE_CATEGORIES = [
       { key: 'crm', label: 'CRM & Marketing' },
       { key: 'loyalty', label: 'Loyalty & Rewards' },
       { key: 'user_portal', label: 'End-User Portal' },
+      { key: 'social_marketing', label: 'Multi-Social Marketing' },
     ]
   }
 ];
@@ -72,7 +73,8 @@ export default function SuperAdminPage() {
     access_control: '🚪',
     crm: '📧',
     loyalty: '🎁',
-    user_portal: '📱'
+    user_portal: '📱',
+    social_marketing: '🚀'
   };
 
   useEffect(() => {

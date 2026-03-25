@@ -140,6 +140,19 @@ export default function App() {
                 features={['Mobile balance check', 'Self-Service Bookings', 'Digital Membership Card']}
               />
             } />
+            <Route path="/social-marketing" element={
+              <ModulePlaceholder 
+                title="Multi-Social Marketing" 
+                icon="🚀"
+                headline="1 Post. 1 Click. Every Social Platform."
+                features={[
+                  'TikTok & Reels Distribution',
+                  'Facebook & Instagram Sync',
+                  'YouTube Shorts Integration',
+                  'Scheduled Cross-Platform Podcasting'
+                ]}
+              />
+            } />
           </Route>
 
           {/* Fallback */}

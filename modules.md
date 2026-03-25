@@ -26,3 +26,5 @@ Module 9: CRM & Marketing Automation: The silent salesperson. Automatically blas
 Module 10: Loyalty & Rewards Program: The retail hook. "Spend $100, get 10 points." Tracks customer lifetime value and generates discount codes. 🎁⭐
 
 Module 11: The End-User Portal: A separate, lightweight mobile web app where members/customers can actually log in to check their own wallet balance or book a court without bothering the front desk. 📱🌐
+
+Module 12: Multi-Social Marketing Automation: The distribution engine. Create a single announcement or promotion and instantly broadcast it to TikTok, Facebook, YouTube, Instagram, and more. 🚀📢

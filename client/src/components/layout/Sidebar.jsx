@@ -17,6 +17,7 @@ const MODULE_HEADERS = {
   crm: 'CRM & MARKETING',
   loyalty: 'LOYALTY REWARDS',
   user_portal: 'USER SELF-SERVICE',
+  social_marketing: 'MULTI-SOCIAL BROADCAST',
   administration: 'SYSTEM ADMIN'
 };
 
@@ -165,6 +166,16 @@ const navigationConfig = [
     requiredModule: 'user_portal',
     moduleId: 'user_portal',
     icon: '📱',
+  },
+  // --- SOCIAL MARKETING ---
+  {
+    id: 'social_marketing',
+    title: 'Multi-Post Broadcaster',
+    route: '/social-marketing',
+    requiredPermission: null,
+    requiredModule: 'social_marketing',
+    moduleId: 'social_marketing',
+    icon: '🚀',
   },
   // --- ADMINISTRATION ---
   {

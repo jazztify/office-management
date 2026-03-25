@@ -23,6 +23,7 @@ export default function SystemSettingsPage() {
     { key: 'crm', label: '📧 CRM & Marketing' },
     { key: 'loyalty', label: '🎁 Loyalty & Rewards' },
     { key: 'user_portal', label: '📱 End-User Portal' },
+    { key: 'social_marketing', label: '🚀 Multi-Social Marketing' },
   ];
 
   useEffect(() => {
