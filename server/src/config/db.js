@@ -1,17 +1,37 @@
-const mongoose = require('mongoose');
+const { Sequelize } = require('sequelize');
+
+const sequelize = new Sequelize(
+  process.env.DB_NAME || 'SaaS',
+  process.env.DB_USER || 'postgres',
+  process.env.DB_PASSWORD || '0022Rr..',
+  {
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 5432,
+    dialect: 'postgres',
+    logging: false, // Set to console.log to see SQL queries
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
+    }
+  }
+);
 
 const connectDB = async () => {
   try {
-    const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/saas_platform';
+    await sequelize.authenticate();
+    console.log('[DB] PostgreSQL connected successfully.');
     
-    const conn = await mongoose.connect(mongoURI);
+    // In a real migration, we'd use migrations, 
+    // but for this task we'll use sync() to ensure tables exist.
+    // await sequelize.sync({ alter: true }); 
     
-    console.log(`[DB] MongoDB connected: ${conn.connection.host}`);
-    return conn;
+    return sequelize;
   } catch (error) {
-    console.error('[DB] Connection failed:', error.message);
+    console.error('[DB] PostgreSQL connection failed:', error.message);
     process.exit(1);
   }
 };
 
-module.exports = { connectDB };
+module.exports = { sequelize, connectDB };

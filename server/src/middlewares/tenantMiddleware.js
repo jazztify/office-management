@@ -1,22 +1,19 @@
-const Tenant = require('../models/Tenant');
-const { tenantContext } = require('./tenantResolver'); // Need this to keep mongooseTenantFilter working!
+const { Tenant } = require('../models');
+const { tenantContext } = require('./context');
 
 const tenantMiddleware = async (req, res, next) => {
   try {
     let tenantId = req.headers['x-tenant-id'];
     
-    // In our tests, x-tenant-id might be passed as a subdomain, so we fallback
     if (!tenantId) {
-      console.log('tenantMiddleware: Missing x-tenant-id header');
       return res.status(403).json({ error: 'Forbidden: Missing tenant header' });
     }
 
-    const mongoose = require('mongoose');
-    const isObjectId = mongoose.Types.ObjectId.isValid(tenantId) && (String(tenantId).length === 24 || String(tenantId).length === 12);
+    // Check if tenantId is a UUID
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(tenantId);
+    const query = isUUID ? { _id: tenantId } : { subdomain: tenantId };
     
-    const query = isObjectId ? { _id: tenantId } : { subdomain: tenantId };
-    
-    const tenant = await Tenant.findOne(query).lean();
+    const tenant = await Tenant.findOne({ where: query });
 
     if (!tenant) {
       console.log(`tenantMiddleware: Tenant not found for identifier ${tenantId}`);
@@ -24,14 +21,13 @@ const tenantMiddleware = async (req, res, next) => {
     }
 
     req.tenantId = tenant._id;
-    
-    // Use the existing tenantContext to satisfy the mongoose plugin
+
     tenantContext.run(tenant._id.toString(), () => {
       next();
     });
   } catch (err) {
-    console.error('tenantMiddleware error:', err);
-    res.status(500).json({ error: 'Internal Server Error' });
+    console.error('tenantMiddleware error:', err.stack);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
   }
 };
 

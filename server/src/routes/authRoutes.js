@@ -1,5 +1,5 @@
 const express = require('express');
-const Tenant = require('../models/Tenant');
+const { Tenant } = require('../models');
 const { loginUser } = require('../services/authService');
 
 const router = express.Router();
@@ -22,10 +22,12 @@ router.post('/login', async (req, res) => {
     }
 
     // Resolve tenant
-    const mongoose = require('mongoose');
-    const isObjectId = mongoose.Types.ObjectId.isValid(tenantIdentifier) && String(tenantIdentifier).length === 24;
-    const query = isObjectId ? { _id: tenantIdentifier } : { subdomain: tenantIdentifier };
-    const tenant = await Tenant.findOne(query).lean();
+    // Check if tenantIdentifier is a UUID
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(tenantIdentifier);
+    const normalizedIdentifier = isUUID ? tenantIdentifier : tenantIdentifier.toLowerCase();
+    const query = isUUID ? { _id: normalizedIdentifier } : { subdomain: normalizedIdentifier };
+    
+    const tenant = await Tenant.findOne({ where: query });
 
     if (!tenant || tenant.status !== 'active') {
       return res.status(403).json({ error: 'Tenant not found or inactive' });

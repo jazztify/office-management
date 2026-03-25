@@ -1,5 +1,6 @@
 const express = require('express');
-const EmployeeProfile = require('../models/EmployeeProfile');
+const { Op } = require('sequelize');
+const { EmployeeProfile, User } = require('../models');
 const { checkPermission } = require('../middlewares/checkPermission');
 
 const router = express.Router();
@@ -10,25 +11,30 @@ const router = express.Router();
  */
 router.get('/', checkPermission('manage_employees'), async (req, res) => {
   try {
-    const employees = await EmployeeProfile.find()
-      .populate('userId', 'email isActive')
-      .populate('managerId', 'firstName lastName')
-      .lean();
-
-    // Compute employment status dynamically for each employee
-    employees.forEach(emp => {
-      if (emp.hireDate) {
-        const now = new Date();
-        const hire = new Date(emp.hireDate);
-        const diffMs = now - hire;
-        const diffMonths = diffMs / (1000 * 60 * 60 * 24 * 30.44);
-        if (diffMonths < 1) emp.employmentStatus = 'training';
-        else if (diffMonths < 6) emp.employmentStatus = 'probationary';
-        else emp.employmentStatus = 'regular';
-      }
+    const employees = await EmployeeProfile.findAll({
+      where: { tenantId: req.tenantId },
+      include: [
+        { model: User, attributes: ['email', 'isActive'] },
+        { model: EmployeeProfile, as: 'manager', attributes: ['firstName', 'lastName'] }
+      ]
     });
 
-    res.json(employees);
+    // Compute employment status dynamically
+    const enriched = employees.map(emp => {
+      const data = emp.toJSON();
+      if (data.hireDate) {
+        const now = new Date();
+        const hire = new Date(data.hireDate);
+        const diffMs = now - hire;
+        const diffMonths = diffMs / (1000 * 60 * 60 * 24 * 30.44);
+        if (diffMonths < 1) data.employmentStatus = 'training';
+        else if (diffMonths < 6) data.employmentStatus = 'probationary';
+        else data.employmentStatus = 'regular';
+      }
+      return data;
+    });
+
+    res.json(enriched);
   } catch (err) {
     console.error('GET /employees Error:', err.message);
     res.status(500).json({ error: 'Failed to fetch employees' });
@@ -37,23 +43,23 @@ router.get('/', checkPermission('manage_employees'), async (req, res) => {
 
 /**
  * GET /api/employees/birthdays
- * Get all employees with birthdays (for calendar)
  */
 router.get('/birthdays', async (req, res) => {
   try {
     const { month } = req.query;
-    const employees = await EmployeeProfile.find({
-      tenantId: req.tenantId,
-      dateOfBirth: { $ne: null },
-    })
-      .select('firstName lastName dateOfBirth department')
-      .lean();
+    const employees = await EmployeeProfile.findAll({
+      where: {
+        tenantId: req.tenantId,
+        dateOfBirth: { [Op.ne]: null },
+      },
+      attributes: ['_id', 'firstName', 'lastName', 'dateOfBirth', 'department']
+    });
 
     // If month filter is provided, filter by birth month
-    let filtered = employees;
+    let filtered = employees.map(e => e.toJSON());
     if (month) {
       const m = parseInt(month);
-      filtered = employees.filter(emp => {
+      filtered = filtered.filter(emp => {
         const dob = new Date(emp.dateOfBirth);
         return dob.getMonth() + 1 === m;
       });
@@ -71,27 +77,31 @@ router.get('/birthdays', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    const employee = await EmployeeProfile.findById(req.params.id)
-      .populate('userId', 'email isActive')
-      .populate('managerId', 'firstName lastName')
-      .lean();
+    const employee = await EmployeeProfile.findOne({
+      where: { _id: req.params.id, tenantId: req.tenantId },
+      include: [
+        { model: User, attributes: ['email', 'isActive'] },
+        { model: EmployeeProfile, as: 'manager', attributes: ['firstName', 'lastName'] }
+      ]
+    });
 
     if (!employee) {
       return res.status(404).json({ error: 'Employee not found' });
     }
 
+    const data = employee.toJSON();
     // Compute status
-    if (employee.hireDate) {
+    if (data.hireDate) {
       const now = new Date();
-      const hire = new Date(employee.hireDate);
+      const hire = new Date(data.hireDate);
       const diffMs = now - hire;
       const diffMonths = diffMs / (1000 * 60 * 60 * 24 * 30.44);
-      if (diffMonths < 1) employee.employmentStatus = 'training';
-      else if (diffMonths < 6) employee.employmentStatus = 'probationary';
-      else employee.employmentStatus = 'regular';
+      if (diffMonths < 1) data.employmentStatus = 'training';
+      else if (diffMonths < 6) data.employmentStatus = 'probationary';
+      else data.employmentStatus = 'regular';
     }
 
-    res.json(employee);
+    res.json(data);
   } catch (err) {
     console.error('GET /employees/:id Error:', err.message);
     res.status(500).json({ error: 'Failed to fetch employee' });
@@ -100,7 +110,6 @@ router.get('/:id', async (req, res) => {
 
 /**
  * POST /api/employees
- * Create an employee profile linked to a user
  */
 router.post('/', checkPermission('manage_employees'), async (req, res) => {
   try {
@@ -132,7 +141,6 @@ router.post('/', checkPermission('manage_employees'), async (req, res) => {
 
 /**
  * PATCH /api/employees/:id
- * Update employee details (department, manager, leave credits, position, salary, birthday, hireDate)
  */
 router.patch('/:id', checkPermission('manage_employees'), async (req, res) => {
   try {
@@ -148,24 +156,26 @@ router.patch('/:id', checkPermission('manage_employees'), async (req, res) => {
       }
     }
 
-    // If hireDate is updated, recompute employmentStatus
-    if (updates.hireDate) {
-      const now = new Date();
-      const hire = new Date(updates.hireDate);
-      const diffMs = now - hire;
-      const diffMonths = diffMs / (1000 * 60 * 60 * 24 * 30.44);
-      if (diffMonths < 1) updates.employmentStatus = 'training';
-      else if (diffMonths < 6) updates.employmentStatus = 'probationary';
-      else updates.employmentStatus = 'regular';
-    }
+    // If hireDate is updated, recompute employmentStatus is handled via hook or just let it be dynamic
+    // In original code it was setting employmentStatus explicitly in updates, but we removed that field from model in migration.
+    // So we don't need to set it.
 
-    const employee = await EmployeeProfile.findByIdAndUpdate(req.params.id, updates, { new: true })
-      .populate('userId', 'email isActive')
-      .populate('managerId', 'firstName lastName');
+    const [updatedCount, updatedRows] = await EmployeeProfile.update(updates, {
+      where: { _id: req.params.id, tenantId: req.tenantId },
+      returning: true
+    });
 
-    if (!employee) {
+    if (updatedCount === 0) {
       return res.status(404).json({ error: 'Employee not found' });
     }
+
+    // Re-fetch with associations
+    const employee = await EmployeeProfile.findByPk(req.params.id, {
+      include: [
+        { model: User, attributes: ['email', 'isActive'] },
+        { model: EmployeeProfile, as: 'manager', attributes: ['firstName', 'lastName'] }
+      ]
+    });
 
     res.json(employee);
   } catch (err) {
@@ -176,15 +186,18 @@ router.patch('/:id', checkPermission('manage_employees'), async (req, res) => {
 
 /**
  * DELETE /api/employees/:id
- * Remove an employee profile
  */
 router.delete('/:id', checkPermission('manage_employees'), async (req, res) => {
   try {
-    const employee = await EmployeeProfile.findByIdAndDelete(req.params.id);
+    const employee = await EmployeeProfile.findOne({ where: { _id: req.params.id, tenantId: req.tenantId } });
     if (!employee) {
       return res.status(404).json({ error: 'Employee not found' });
     }
-    res.json({ message: `Employee '${employee.firstName} ${employee.lastName}' removed successfully` });
+    
+    const name = `${employee.firstName} ${employee.lastName}`;
+    await employee.destroy();
+    
+    res.json({ message: `Employee '${name}' removed successfully` });
   } catch (err) {
     console.error('DELETE /employees/:id Error:', err.message);
     res.status(500).json({ error: 'Failed to delete employee' });

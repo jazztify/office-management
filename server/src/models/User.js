@@ -1,14 +1,56 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const userSchema = new mongoose.Schema({
-  email: { type: String, required: true },
-  passwordHash: { type: String, required: true },
-  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
-  roles: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Role' }],
-  isActive: { type: Boolean, default: true }
-}, { timestamps: true });
+const User = sequelize.define('User', {
+  _id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  email: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  passwordHash: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'Tenants',
+      key: '_id',
+    },
+  },
+  isActive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+  },
+  membershipTierId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'MembershipTiers',
+      key: '_id',
+    },
+  },
+  membershipExpiresAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  rfidCardNumber: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+}, {
+  timestamps: true,
+  indexes: [
+    {
+      unique: true,
+      fields: ['email', 'tenantId']
+    }
+  ]
+});
 
-// Compound index ensures email is unique only within a specific tenant workspace
-userSchema.index({ email: 1, tenantId: 1 }, { unique: true });
-
-module.exports = mongoose.model('User', userSchema);
+module.exports = User;

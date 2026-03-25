@@ -1,13 +1,13 @@
 const express = require('express');
-const EarlyOutRequest = require('../models/EarlyOutRequest');
-const EmployeeProfile = require('../models/EmployeeProfile');
+const { Op } = require('sequelize');
+const { EarlyOutRequest, EmployeeProfile, User } = require('../models');
 const { notifyHRAdmins, createAndSendNotification } = require('../services/wsService');
 
 const router = express.Router();
 
 /**
  * GET /api/early-out
- * List early-out/half-day requests — employees see their own, HR/Admin sees all
+ * List early-out/half-day requests
  */
 router.get('/', async (req, res) => {
   try {
@@ -18,27 +18,27 @@ router.get('/', async (req, res) => {
     if (date) filter.date = date;
     if (requestType) filter.requestType = requestType;
 
-    // Regular employees only see their own
     const hasManage = req.user.permissions?.includes('manage_leaves') || req.user.permissions?.includes('*');
     if (!hasManage) {
-      const emp = await EmployeeProfile.findOne({ userId: req.user._id }).lean();
+      const emp = await EmployeeProfile.findOne({ where: { userId: req.user._id } });
       if (!emp) return res.json({ requests: [], pagination: { total: 0 } });
       filter.employeeId = emp._id;
     }
 
-    const requests = await EarlyOutRequest.find(filter)
-      .populate('employeeId', 'firstName lastName department position')
-      .populate('approvedBy', 'firstName lastName')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit))
-      .lean();
-
-    const total = await EarlyOutRequest.countDocuments(filter);
+    const { count, rows } = await EarlyOutRequest.findAndCountAll({
+      where: filter,
+      include: [
+        { model: EmployeeProfile, attributes: ['firstName', 'lastName', 'department', 'position'] },
+        { model: User, as: 'approver', attributes: ['email'] }
+      ],
+      order: [['createdAt', 'DESC']],
+      offset: (page - 1) * limit,
+      limit: parseInt(limit)
+    });
 
     res.json({
-      requests,
-      pagination: { total, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(total / limit) },
+      requests: rows,
+      pagination: { total: count, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(count / limit) },
     });
   } catch (err) {
     console.error('GET /early-out Error:', err.message);
@@ -53,7 +53,7 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { date, requestType, reason, requestedClockOut } = req.body;
-    const emp = await EmployeeProfile.findOne({ userId: req.user._id }).lean();
+    const emp = await EmployeeProfile.findOne({ where: { userId: req.user._id } });
     if (!emp) return res.status(404).json({ error: 'Employee profile not found' });
 
     if (!date || !requestType || !reason) {
@@ -64,12 +64,10 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'requestType must be "early_out" or "half_day"' });
     }
 
-    // Check for existing request
     const existing = await EarlyOutRequest.findOne({
-      employeeId: emp._id,
-      date,
-      requestType,
+      where: { employeeId: emp._id, date, requestType }
     });
+
     if (existing) {
       return res.status(409).json({ error: `You already have a ${requestType.replace('_', ' ')} request for this date` });
     }
@@ -83,11 +81,10 @@ router.post('/', async (req, res) => {
       requestedClockOut: requestedClockOut || null,
     });
 
-    const populated = await EarlyOutRequest.findById(request._id)
-      .populate('employeeId', 'firstName lastName')
-      .lean();
+    const populated = await EarlyOutRequest.findByPk(request._id, {
+      include: [{ model: EmployeeProfile, attributes: ['firstName', 'lastName'] }]
+    });
 
-    // Notify HR/Admin
     const empName = `${emp.firstName} ${emp.lastName}`;
     const typeLabel = requestType === 'early_out' ? 'Early Out' : 'Half Day';
 
@@ -109,7 +106,6 @@ router.post('/', async (req, res) => {
 
 /**
  * PATCH /api/early-out/:id/status
- * HR/Admin: Approve or reject request
  */
 router.patch('/:id/status', async (req, res) => {
   try {
@@ -122,11 +118,9 @@ router.patch('/:id/status', async (req, res) => {
       return res.status(400).json({ error: 'Status must be "approved" or "rejected"' });
     }
 
-    const hrEmp = await EmployeeProfile.findOne({ userId: req.user._id }).lean();
-
     const update = {
       status,
-      approvedBy: hrEmp?._id || null,
+      approvedBy: req.user?._id || null, // ApprovedBy is regular User ID here in DB? model/index shows approvedBy -> User
       approvedAt: new Date(),
     };
 
@@ -134,18 +128,24 @@ router.patch('/:id/status', async (req, res) => {
       update.rejectionReason = rejectionReason;
     }
 
-    const request = await EarlyOutRequest.findByIdAndUpdate(req.params.id, update, { new: true })
-      .populate('employeeId', 'firstName lastName userId')
-      .populate('approvedBy', 'firstName lastName');
+    const [updatedCount, updatedRows] = await EarlyOutRequest.update(update, {
+      where: { _id: req.params.id, tenantId: req.tenantId },
+      returning: true
+    });
 
-    if (!request) return res.status(404).json({ error: 'Request not found' });
+    if (updatedCount === 0) return res.status(404).json({ error: 'Request not found' });
 
-    // Notify the employee about the decision
+    const request = await EarlyOutRequest.findByPk(req.params.id, {
+      include: [
+        { model: EmployeeProfile, attributes: ['firstName', 'lastName', 'userId'] },
+        { model: User, as: 'approver', attributes: ['email'] }
+      ]
+    });
+
     const typeLabel = request.requestType === 'early_out' ? 'Early Out' : 'Half Day';
     const statusLabel = status === 'approved' ? 'Approved' : 'Declined';
 
-    // Get the user ID from the employee profile
-    const empProfile = await EmployeeProfile.findById(request.employeeId._id).lean();
+    const empProfile = await EmployeeProfile.findByPk(request.employeeId);
     if (empProfile) {
       await createAndSendNotification({
         tenantId: req.tenantId,
@@ -168,18 +168,19 @@ router.patch('/:id/status', async (req, res) => {
 
 /**
  * GET /api/early-out/check/:date
- * Check if current user has an approved early-out or half-day for a given date
  */
 router.get('/check/:date', async (req, res) => {
   try {
-    const emp = await EmployeeProfile.findOne({ userId: req.user._id }).lean();
+    const emp = await EmployeeProfile.findOne({ where: { userId: req.user._id } });
     if (!emp) return res.json({ hasApproval: false });
 
     const approval = await EarlyOutRequest.findOne({
-      employeeId: emp._id,
-      date: req.params.date,
-      status: 'approved',
-    }).lean();
+      where: {
+        employeeId: emp._id,
+        date: req.params.date,
+        status: 'approved',
+      }
+    });
 
     res.json({
       hasApproval: !!approval,

@@ -1,8 +1,7 @@
 const WebSocket = require('ws');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const Notification = require('../models/Notification');
-const Role = require('../models/Role');
+const { Op } = require('sequelize');
+const { User, Notification, Role } = require('../models');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 
@@ -40,9 +39,11 @@ function initWebSocket(httpServer) {
       ws.userId = userId;
 
       // Send unread count on connect
-      const unreadCount = await Notification.countDocuments({
-        recipientId: userId,
-        isRead: false,
+      const unreadCount = await Notification.count({
+        where: {
+          recipientId: userId,
+          isRead: false,
+        }
       });
       ws.send(JSON.stringify({ type: 'unread_count', count: unreadCount }));
 
@@ -104,7 +105,7 @@ async function createAndSendNotification({
     // Send via WebSocket
     sendToUser(recipientId, {
       type: 'new_notification',
-      notification: notification.toObject(),
+      notification: notification.toJSON(),
     });
 
     return notification;
@@ -119,22 +120,32 @@ async function createAndSendNotification({
 async function notifyHRAdmins(tenantId, { senderId, type, title, message, referenceId, referenceModel }) {
   try {
     // Find roles with manage_leaves or * permission (HR/Admin)
-    const hrRoles = await Role.find({
-      tenantId,
-      $or: [
-        { permissions: 'manage_leaves' },
-        { permissions: '*' },
-      ],
-    }).lean();
+    const hrRoles = await Role.findAll({
+      where: {
+        tenantId,
+        [Op.or]: [
+          { permissions: { [Op.contains]: ['manage_leaves'] } },
+          { permissions: { [Op.contains]: ['*'] } },
+        ],
+      }
+    });
 
     const roleIds = hrRoles.map(r => r._id);
 
+    if (roleIds.length === 0) return;
+
     // Find users with those roles
-    const hrUsers = await User.find({
-      tenantId,
-      roles: { $in: roleIds },
-      _id: { $ne: senderId }, // Don't notify the sender
-    }).lean();
+    const hrUsers = await User.findAll({
+      where: {
+        tenantId,
+        _id: { [Op.ne]: senderId }, // Don't notify the sender
+      },
+      include: [{
+        model: Role,
+        where: { _id: { [Op.in]: roleIds } },
+        through: { attributes: [] }
+      }]
+    });
 
     for (const hrUser of hrUsers) {
       await createAndSendNotification({

@@ -1,26 +1,91 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const attendanceSchema = new mongoose.Schema({
-  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
-  employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'EmployeeProfile', required: true },
-  date: { type: String, required: true }, // YYYY-MM-DD format for daily grouping
-  clockIn: { type: Date },
-  lunchOut: { type: Date },
-  lunchIn: { type: Date },
-  clockOut: { type: Date },
-  // Computed fields (updated on each punch)
-  totalWorkHours: { type: Number, default: 0 },     // Total hours worked (minus lunch)
-  lunchBreakMinutes: { type: Number, default: 0 },   // Actual lunch break duration
-  lateMinutes: { type: Number, default: 0 },          // Minutes late from expected start
-  undertimeMinutes: { type: Number, default: 0 },     // Minutes short from expected end
-  overtimeMinutes: { type: Number, default: 0 },      // Approved OT minutes
-  status: { type: String, enum: ['incomplete', 'complete', 'absent', 'half_day', 'on_leave'], default: 'incomplete' },
-  remarks: { type: String },
-  ipAddress: { type: String },
-}, { timestamps: true });
+const AttendanceLog = sequelize.define('AttendanceLog', {
+  _id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'Tenants',
+      key: '_id',
+    },
+  },
+  employeeId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'EmployeeProfiles',
+      key: '_id',
+    },
+  },
+  date: {
+    type: DataTypes.STRING, // YYYY-MM-DD
+    allowNull: false,
+  },
+  clockIn: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  lunchOut: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  lunchIn: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  clockOut: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  totalWorkHours: {
+    type: DataTypes.DECIMAL(5, 2),
+    defaultValue: 0,
+  },
+  lunchBreakMinutes: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  lateMinutes: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  undertimeMinutes: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  overtimeMinutes: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  status: {
+    type: DataTypes.ENUM('incomplete', 'complete', 'absent', 'half_day', 'on_leave'),
+    defaultValue: 'incomplete',
+  },
+  remarks: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  ipAddress: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+}, {
+  timestamps: true,
+  indexes: [
+    {
+      unique: true,
+      fields: ['employeeId', 'date']
+    },
+    {
+      fields: ['tenantId', 'date']
+    }
+  ]
+});
 
-// One record per employee per day
-attendanceSchema.index({ employeeId: 1, date: 1 }, { unique: true });
-attendanceSchema.index({ tenantId: 1, date: 1 });
-
-module.exports = mongoose.model('AttendanceLog', attendanceSchema);
+module.exports = AttendanceLog;

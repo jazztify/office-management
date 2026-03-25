@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const User = require('../models/User');
+const { User, Role } = require('../models');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
@@ -54,7 +54,14 @@ const verifyPassword = (password, storedHash) => {
  * Login service: validates credentials & returns JWT
  */
 const loginUser = async (email, password, tenantId) => {
-  const user = await User.findOne({ email, tenantId }).populate('roles', 'permissions name');
+  const user = await User.findOne({ 
+    where: { email, tenantId },
+    include: [{
+      model: Role,
+      attributes: ['permissions', 'name'],
+      through: { attributes: [] } // Exclude join table attributes
+    }]
+  });
 
   if (!user) {
     throw new Error('Invalid credentials');
@@ -72,8 +79,8 @@ const loginUser = async (email, password, tenantId) => {
   const token = generateToken(user);
 
   // Flatten permissions for frontend consumption
-  const permissions = user.roles
-    ? [...new Set(user.roles.flatMap(role => role.permissions || []))]
+  const permissions = user.Roles
+    ? [...new Set(user.Roles.flatMap(role => role.permissions || []))]
     : [];
 
   return {
@@ -82,7 +89,7 @@ const loginUser = async (email, password, tenantId) => {
       _id: user._id,
       email: user.email,
       tenantId: user.tenantId,
-      roles: user.roles.map(r => ({ name: r.name, permissions: r.permissions })),
+      roles: user.Roles.map(r => ({ name: r.name, permissions: r.permissions })),
       permissions,
     },
   };
@@ -92,7 +99,7 @@ const loginUser = async (email, password, tenantId) => {
  * Register a new user within a tenant
  */
 const registerUser = async ({ email, password, tenantId, roleIds = [] }) => {
-  const existing = await User.findOne({ email, tenantId });
+  const existing = await User.findOne({ where: { email, tenantId } });
   if (existing) {
     throw new Error('A user with this email already exists in this workspace');
   }
@@ -103,8 +110,11 @@ const registerUser = async ({ email, password, tenantId, roleIds = [] }) => {
     email,
     passwordHash,
     tenantId,
-    roles: roleIds,
   });
+
+  if (roleIds && roleIds.length > 0) {
+    await user.setRoles(roleIds);
+  }
 
   return {
     _id: user._id,

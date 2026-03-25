@@ -1,37 +1,82 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const tenantSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  subdomain: { type: String, required: true, unique: true, index: true },
-  customDomain: { type: String, sparse: true, unique: true },
-  logoUrl: { type: String },
-  status: { type: String, enum: ['active', 'suspended', 'churned'], default: 'active' },
-  activeModules: [{ type: String }],
-  subscriptionTier: { type: String, enum: ['free', 'pro', 'enterprise'], default: 'free' },
+const Tenant = sequelize.define('Tenant', {
+  _id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  subdomain: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+  },
+  customDomain: {
+    type: DataTypes.STRING,
+    unique: true,
+    allowNull: true,
+  },
+  logoUrl: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  status: {
+    type: DataTypes.ENUM('active', 'suspended', 'churned'),
+    defaultValue: 'active',
+  },
+  activeModules: {
+    type: DataTypes.JSONB, // Array of strings stored as JSONB
+    defaultValue: [],
+  },
+  customPrice: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    defaultValue: null,
+  },
+  subscriptionTier: {
+    type: DataTypes.STRING,
+    defaultValue: 'free',
+  },
   settings: {
-    officeHours: {
-      start: { type: String, default: '08:00' },       // 8:00 AM
-      end: { type: String, default: '17:00' },         // 5:00 PM
-      lunchStart: { type: String, default: '12:00' },   // 12:00 PM
-      lunchEnd: { type: String, default: '13:00' },     // 1:00 PM
+    type: DataTypes.JSONB,
+    defaultValue: {
+      officeHours: {
+        start: '08:00',
+        end: '17:00',
+        lunchStart: '12:00',
+        lunchEnd: '13:00',
+      },
+      deductions: {
+        latePerMinute: 5,
+        undertimePerMinute: 5,
+        absencePerDay: 500,
+        halfDayDeduction: 250,
+        lunchOvertime: 0,
+        maxLunchMinutes: 60,
+      },
+      overtime: {
+        requiresApproval: true,
+        rateMultiplier: 1.25,
+        restDayMultiplier: 1.3,
+        holidayMultiplier: 2.0,
+        maxHoursPerDay: 4,
+      },
+      gracePeriod: 15,
     },
-    deductions: {
-      latePerMinute: { type: Number, default: 5 },       // ₱ per minute late
-      undertimePerMinute: { type: Number, default: 5 },   // ₱ per minute undertime
-      absencePerDay: { type: Number, default: 500 },      // ₱ per day absent
-      halfDayDeduction: { type: Number, default: 250 },   // ₱ per half day
-      lunchOvertime: { type: Number, default: 0 },        // ₱ deduct if lunch exceeds limit
-      maxLunchMinutes: { type: Number, default: 60 },     // Max lunch break in minutes
-    },
-    overtime: {
-      requiresApproval: { type: Boolean, default: true },
-      rateMultiplier: { type: Number, default: 1.25 },    // 125% regular rate (PH standard)
-      restDayMultiplier: { type: Number, default: 1.3 },  // 130% for rest day OT
-      holidayMultiplier: { type: Number, default: 2.0 },  // 200% for holiday OT
-      maxHoursPerDay: { type: Number, default: 4 },       // Max OT hours per day
-    },
-    gracePeriod: { type: Number, default: 15 },            // Minutes grace period before counted as late
-  }
-}, { timestamps: true });
+  },
+}, {
+  timestamps: true,
+  indexes: [
+    {
+      unique: true,
+      fields: ['subdomain']
+    }
+  ]
+});
 
-module.exports = mongoose.model('Tenant', tenantSchema);
+module.exports = Tenant;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -9,9 +9,11 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { login, refreshSession } = useAuth();
   const navigate = useNavigate();
 
+  // Auto-login is now handled in AuthContext's loadSession to prevent race conditions.
+  // LoginPage just renders the form if not authenticated.
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');

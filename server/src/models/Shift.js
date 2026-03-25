@@ -1,15 +1,50 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const shiftSchema = new mongoose.Schema({
-  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
-  name: { type: String, required: true },
-  startTime: { type: String, required: true }, // e.g. '08:00'
-  endTime: { type: String, required: true }, // e.g. '17:00'
-  lunchStart: { type: String }, // e.g. '12:00'
-  lunchEnd: { type: String }, // e.g. '13:00'
-  workDays: [{ type: Number }], // 0=Sun, 1=Mon, ..., 6=Sat
-  description: { type: String },
-  assignedEmployees: [{ type: mongoose.Schema.Types.ObjectId, ref: 'EmployeeProfile' }]
-}, { timestamps: true });
+const Shift = sequelize.define('Shift', {
+  _id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'Tenants',
+      key: '_id',
+    },
+  },
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  startTime: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  endTime: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  lunchStart: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  lunchEnd: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  workDays: {
+    type: DataTypes.JSONB, // Array of numbers [0,1,2,3,4,5,6]
+    defaultValue: [],
+  },
+  description: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+}, {
+  timestamps: true,
+});
 
-module.exports = mongoose.model('Shift', shiftSchema);
+module.exports = Shift;

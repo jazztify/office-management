@@ -11,12 +11,25 @@ export function AuthProvider({ children }) {
 
   // Load user session from stored token
   const loadSession = useCallback(async () => {
+    // Check for impersonation tokens in URL first!
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get('token');
+    const urlSub = params.get('subdomain');
+    
+    if (urlToken) {
+      localStorage.setItem('token', urlToken);
+      if (urlSub) localStorage.setItem('tenantSubdomain', urlSub);
+      // Clean URL immediately so refresh won't trigger this again
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     const token = localStorage.getItem('token');
     if (!token) {
       setIsLoading(false);
       return;
     }
-
+    
+    // x-tenant-id header will be picked up by api.js from localStorage
     try {
       const { data } = await api.get('/api/me');
       setUser(data.user);

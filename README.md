@@ -1,22 +1,21 @@
 # Office Management System (SaaS)
 
-A comprehensive Office Management System built with the MERN stack (MongoDB, Express, React, Node.js). This platform supports multi-tenancy, allowing multiple companies to manage their employees, attendance, payroll, and more.
+A comprehensive Office Management System built with a modern stack (**Node.js, Express, PostgreSQL, Sequelize, React**). This platform supports multi-tenancy, allowing multiple companies to manage their employees, attendance, payroll, and more.
 
 ## 🚀 Features
 
-- **Multi-tenancy**: Isolated data for each company (tenant).
-- **Authentication & RBAC**: Secure login with Role-Based Access Control (Super Admin, Admin, HR Manager, Employee, Viewer).
-- **Employee Management**: Manage employee profiles, roles, and permissions.
-- **Attendance Tracking**: Clock-in/out functionality with lunch break tracking.
+- **Multi-tenancy**: Isolated data for each company (tenant) with unique subdomains.
+- **Authentication & RBAC**: Secure login with Role-Based Access Control (Super Admin, Admin, HR Manager, Employee, etc.).
+- **Employee Management**: Manage employee profiles, roles, and permissions within each tenant.
+- **Attendance Tracking**: Clock-in/out functionality with support for overtime and automatic late/absent calculations.
 - **Holiday Management**: Configuration of company-wide and government holidays.
-- **Payroll**: (In Progress) Processing payroll based on attendance and deductions.
-- **Support for Subdomains**: (Simulated) Tenant identification via headers.
+- **Payroll**: Automated payslip generation with support for Philippine statutory deductions (SSS, PhilHealth, Pag-IBIG), 13th month pay, and holiday pay.
 
 ## 🛠️ Technology Stack
 
-- **Frontend**: React (Vite), React Router, TailwindCSS (for styling), Axios.
+- **Frontend**: React (Vite), React Router, Vanilla CSS (Premium Design), Axios.
 - **Backend**: Node.js, Express.
-- **Database**: MongoDB (Mongoose).
+- **Database**: PostgreSQL (Sequelize ORM).
 - **Testing**: Jest, Supertest.
 
 ## 📦 Project Structure
@@ -24,7 +23,7 @@ A comprehensive Office Management System built with the MERN stack (MongoDB, Exp
 ```text
 /
 ├── client/           # React frontend (Vite)
-└── server/           # Express backend
+└── server/           # Express backend (Node.js/Sequelize)
 ```
 
 ## 🏁 Getting Started
@@ -32,7 +31,7 @@ A comprehensive Office Management System built with the MERN stack (MongoDB, Exp
 ### Prerequisites
 
 - Node.js (v18+)
-- MongoDB (Running locally or via Atlas)
+- PostgreSQL (Running locally or via Amazon RDS/Supabase)
 
 ### Local Setup
 
@@ -46,8 +45,9 @@ A comprehensive Office Management System built with the MERN stack (MongoDB, Exp
    ```bash
    cd server
    npm install
-   # Create a .env file based on example
-   npm run dev
+   # Create a .env file (copy from example if available)
+   npm run setup    # Initial migration and seeding
+   npm run dev      # Start dev server
    ```
 
 3. **Client Setup**:
@@ -56,6 +56,12 @@ A comprehensive Office Management System built with the MERN stack (MongoDB, Exp
    npm install
    npm run dev
    ```
+
+### 🔑 Default Credentials
+After running `npm run setup`, you can log in with:
+- **Tenant (Subdomain):** `admin`
+- **Email:** `admin@system.com`
+- **Password:** `adminpassword123`
 
 ## 🤝 Collaboration
 

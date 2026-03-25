@@ -1,19 +1,24 @@
 const express = require('express');
-const User = require('../models/User');
+const { User, Role } = require('../models');
 const { hashPassword } = require('../services/authService');
 
 const router = express.Router();
 
 /**
  * GET /api/users
- * Returns all users scoped to the current tenant via global Mongoose filter
+ * Returns all users scoped to the current tenant
  */
 router.get('/', async (req, res) => {
   try {
-    const users = await User.find()
-      .select('-passwordHash')
-      .populate('roles', 'name permissions')
-      .lean();
+    const users = await User.findAll({
+      where: { tenantId: req.tenantId },
+      attributes: { exclude: ['passwordHash'] },
+      include: [{
+        model: Role,
+        attributes: ['name', 'permissions'],
+        through: { attributes: [] }
+      }]
+    });
     res.json(users);
   } catch (err) {
     console.error('GET /users Error:', err.message);
@@ -27,10 +32,15 @@ router.get('/', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    const user = await User.findById(req.params.id)
-      .select('-passwordHash')
-      .populate('roles', 'name permissions')
-      .lean();
+    const user = await User.findOne({
+      where: { _id: req.params.id, tenantId: req.tenantId },
+      attributes: { exclude: ['passwordHash'] },
+      include: [{
+        model: Role,
+        attributes: ['name', 'permissions'],
+        through: { attributes: [] }
+      }]
+    });
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -55,7 +65,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const existing = await User.findOne({ email, tenantId: req.tenantId });
+    const existing = await User.findOne({ where: { email, tenantId: req.tenantId } });
     if (existing) {
       return res.status(409).json({ error: 'User already exists in this workspace' });
     }
@@ -65,15 +75,19 @@ router.post('/', async (req, res) => {
       email,
       passwordHash,
       tenantId: req.tenantId,
-      roles: roleIds || [],
     });
 
-    res.status(201).json({
-      _id: user._id,
-      email: user.email,
-      tenantId: user.tenantId,
-      roles: user.roles,
+    if (roleIds && roleIds.length > 0) {
+      await user.setRoles(roleIds);
+    }
+
+    // Re-fetch with roles to return
+    const createdUser = await User.findByPk(user._id, {
+      attributes: { exclude: ['passwordHash'] },
+      include: [{ model: Role, through: { attributes: [] } }]
     });
+
+    res.status(201).json(createdUser);
   } catch (err) {
     console.error('POST /users Error:', err.message);
     res.status(500).json({ error: 'Failed to create user' });
@@ -86,24 +100,31 @@ router.post('/', async (req, res) => {
  */
 router.patch('/:id', async (req, res) => {
   try {
-    const allowedUpdates = ['roles', 'isActive'];
-    const updates = {};
+    const { roles: roleIds, isActive } = req.body;
     
-    for (const key of allowedUpdates) {
-      if (req.body[key] !== undefined) {
-        updates[key] = req.body[key];
-      }
-    }
-
-    const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true })
-      .select('-passwordHash')
-      .populate('roles', 'name permissions');
+    const user = await User.findOne({ where: { _id: req.params.id, tenantId: req.tenantId } });
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json(user);
+    if (isActive !== undefined) {
+      user.isActive = isActive;
+    }
+
+    await user.save();
+
+    if (roleIds !== undefined) {
+      await user.setRoles(roleIds);
+    }
+
+    // Re-fetch with roles
+    const updatedUser = await User.findByPk(user._id, {
+      attributes: { exclude: ['passwordHash'] },
+      include: [{ model: Role, through: { attributes: [] } }]
+    });
+
+    res.json(updatedUser);
   } catch (err) {
     console.error('PATCH /users/:id Error:', err.message);
     res.status(500).json({ error: 'Failed to update user' });
@@ -116,15 +137,14 @@ router.patch('/:id', async (req, res) => {
  */
 router.delete('/:id', async (req, res) => {
   try {
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { isActive: false },
-      { new: true }
-    ).select('-passwordHash');
+    const user = await User.findOne({ where: { _id: req.params.id, tenantId: req.tenantId } });
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+
+    user.isActive = false;
+    await user.save();
 
     res.json({ message: 'User deactivated', user });
   } catch (err) {
@@ -149,14 +169,14 @@ router.post('/change-password', async (req, res) => {
       return res.status(400).json({ error: 'New password must be at least 6 characters long' });
     }
 
-    const user = await User.findById(req.user._id).select('+passwordHash');
+    const user = await User.findByPk(req.user._id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Hash the generic current token
-    const currentHash = hashPassword(currentPassword);
-    if (user.passwordHash !== currentHash) {
+    // Hash with the same salt?authService.verifyPassword handles salt correctly.
+    const isMatch = require('../services/authService').verifyPassword(currentPassword, user.passwordHash);
+    if (!isMatch) {
       return res.status(401).json({ error: 'Incorrect current password' });
     }
 

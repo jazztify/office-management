@@ -1,53 +1,108 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const payslipSchema = new mongoose.Schema({
-  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
-  employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'EmployeeProfile', required: true },
+const Payslip = sequelize.define('Payslip', {
+  _id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'Tenants',
+      key: '_id',
+    },
+  },
+  employeeId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'EmployeeProfiles',
+      key: '_id',
+    },
+  },
   period: {
-    month: { type: Number, required: true, min: 1, max: 12 },
-    year: { type: Number, required: true },
+    type: DataTypes.JSONB, // { month, year }
+    allowNull: false,
   },
   payPeriod: {
-    type: String,
-    enum: ['first_half', 'second_half', 'full_month'],
-    required: true,
-    default: 'full_month',
+    type: DataTypes.ENUM('first_half', 'second_half', 'full_month'),
+    defaultValue: 'full_month',
+    allowNull: false,
   },
-  basicSalary: { type: Number, required: true },
+  basicSalary: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: false,
+  },
   allowances: {
-    housing: { type: Number, default: 0 },
-    transport: { type: Number, default: 0 },
-    meal: { type: Number, default: 0 },
-    holidayPay: { type: Number, default: 0 },
-    thirteenthMonthPay: { type: Number, default: 0 },
-    other: { type: Number, default: 0 },
+    type: DataTypes.JSONB,
+    defaultValue: {
+      housing: 0,
+      transport: 0,
+      meal: 0,
+      holidayPay: 0,
+      thirteenthMonthPay: 0,
+      other: 0,
+    },
   },
   deductions: {
-    tax: { type: Number, default: 0 },
-    insurance: { type: Number, default: 0 },
-    sss: { type: Number, default: 0 },
-    pagibig: { type: Number, default: 0 },
-    philhealth: { type: Number, default: 0 },
-    holidayDeduction: { type: Number, default: 0 },
-    other: { type: Number, default: 0 },
+    type: DataTypes.JSONB,
+    defaultValue: {
+      tax: 0,
+      insurance: 0,
+      sss: 0,
+      pagibig: 0,
+      philhealth: 0,
+      holidayDeduction: 0,
+      other: 0,
+    },
   },
   attendanceSummary: {
-    totalWorkHours: { type: Number, default: 0 },
-    totalLateHours: { type: Number, default: 0 },
-    totalAbsentDays: { type: Number, default: 0 },
+    type: DataTypes.JSONB,
+    defaultValue: {
+      totalWorkHours: 0,
+      totalLateHours: 0,
+      totalAbsentDays: 0,
+    },
   },
-  grossPay: { type: Number, required: true },
-  totalDeductions: { type: Number, required: true },
-  netPay: { type: Number, required: true },
-  status: { type: String, enum: ['draft', 'generated', 'paid'], default: 'generated' },
-  generatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  notes: { type: String },
-}, { timestamps: true });
+  grossPay: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: false,
+  },
+  totalDeductions: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: false,
+  },
+  netPay: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: false,
+  },
+  status: {
+    type: DataTypes.ENUM('draft', 'generated', 'paid'),
+    defaultValue: 'generated',
+  },
+  generatedBy: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'Users',
+      key: '_id',
+    },
+  },
+  notes: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+}, {
+  timestamps: true,
+  indexes: [
+    {
+      unique: true,
+      fields: ['employeeId', 'period', 'payPeriod', 'tenantId'] // period is JSONB, might need expression index in real SQL but here we'll define it simply
+    }
+  ]
+});
 
-// Ensure one payslip per employee per period per pay period type
-payslipSchema.index(
-  { employeeId: 1, 'period.month': 1, 'period.year': 1, payPeriod: 1, tenantId: 1 },
-  { unique: true }
-);
-
-module.exports = mongoose.model('Payslip', payslipSchema);
+module.exports = Payslip;

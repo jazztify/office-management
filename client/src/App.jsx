@@ -13,9 +13,16 @@ import HolidaysPage from './pages/HolidaysPage';
 import AttendancePage from './pages/AttendancePage';
 import OvertimePage from './pages/OvertimePage';
 import InventoryPage from './pages/InventoryPage';
+import POSPage from './pages/POSPage';
+import LedgerPage from './pages/LedgerPage';
 import SettingsPage from './pages/SettingsPage';
 import ShiftsPage from './pages/ShiftsPage';
 import SuperAdminPage from './pages/SuperAdminPage';
+import SystemSettingsPage from './pages/SystemSettingsPage';
+import MembershipsPage from './pages/MembershipsPage';
+import ResourcesPage from './pages/ResourcesPage';
+import BookingsPage from './pages/BookingsPage';
+import AccessLogsPage from './pages/AccessLogsPage';
 
 function ProtectedLayout() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -79,9 +86,16 @@ export default function App() {
             <Route path="/attendance" element={<AttendancePage />} />
             <Route path="/overtime" element={<OvertimePage />} />
             <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/pos" element={<POSPage />} />
+            <Route path="/ledger" element={<LedgerPage />} />
             <Route path="/shifts" element={<ShiftsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/system-admin" element={<SuperAdminPage />} />
+            <Route path="/system-settings" element={<SystemSettingsPage />} />
+            <Route path="/memberships" element={<MembershipsPage />} />
+            <Route path="/resources" element={<ResourcesPage />} />
+            <Route path="/bookings" element={<BookingsPage />} />
+            <Route path="/access-logs" element={<AccessLogsPage />} />
           </Route>
 
           {/* Fallback */}

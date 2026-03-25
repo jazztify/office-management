@@ -1,30 +1,31 @@
 const express = require('express');
-const OvertimeRequest = require('../models/OvertimeRequest');
-const EmployeeProfile = require('../models/EmployeeProfile');
+const { OvertimeRequest, EmployeeProfile, User } = require('../models');
 const { notifyHRAdmins, createAndSendNotification } = require('../services/wsService');
 
 const router = express.Router();
 
 /**
  * GET /api/overtime
- * List overtime requests — employees see their own, HR/Admin sees all
+ * List overtime requests
  */
 router.get('/', async (req, res) => {
   try {
     const filter = { tenantId: req.tenantId };
 
-    // Regular employees only see their own OT requests
     if (!req.user.permissions?.includes('manage_leaves') && !req.user.permissions?.includes('*')) {
-      const emp = await EmployeeProfile.findOne({ userId: req.user._id }).lean();
+      const emp = await EmployeeProfile.findOne({ where: { userId: req.user._id } });
       if (!emp) return res.json([]);
       filter.employeeId = emp._id;
     }
 
-    const requests = await OvertimeRequest.find(filter)
-      .populate('employeeId', 'firstName lastName department position')
-      .populate('approvedBy', 'firstName lastName')
-      .sort({ createdAt: -1 })
-      .lean();
+    const requests = await OvertimeRequest.findAll({
+      where: filter,
+      include: [
+        { model: EmployeeProfile, attributes: ['firstName', 'lastName', 'department', 'position'] },
+        { model: User, as: 'approver', attributes: ['email'] }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
 
     res.json(requests);
   } catch (err) {
@@ -35,12 +36,11 @@ router.get('/', async (req, res) => {
 
 /**
  * POST /api/overtime
- * Employee: Submit an overtime request (must be approved by HR)
  */
 router.post('/', async (req, res) => {
   try {
     const { date, startTime, endTime, hoursRequested, reason } = req.body;
-    const emp = await EmployeeProfile.findOne({ userId: req.user._id }).lean();
+    const emp = await EmployeeProfile.findOne({ where: { userId: req.user._id } });
     if (!emp) return res.status(404).json({ error: 'Employee profile not found' });
 
     if (!date || !hoursRequested || !reason) {
@@ -57,7 +57,6 @@ router.post('/', async (req, res) => {
       reason,
     });
 
-    // Notify HR/Admin
     const empName = `${emp.firstName} ${emp.lastName}`;
     await notifyHRAdmins(req.tenantId, {
       senderId: req.user._id,
@@ -77,7 +76,6 @@ router.post('/', async (req, res) => {
 
 /**
  * PATCH /api/overtime/:id/status
- * HR/Admin: Approve or reject an overtime request
  */
 router.patch('/:id/status', async (req, res) => {
   try {
@@ -90,11 +88,9 @@ router.patch('/:id/status', async (req, res) => {
       return res.status(400).json({ error: 'Status must be "approved" or "rejected"' });
     }
 
-    const hrEmp = await EmployeeProfile.findOne({ userId: req.user._id }).lean();
-
     const update = {
       status,
-      approvedBy: hrEmp?._id || null,
+      approvedBy: req.user?._id || null,
       approvedAt: new Date(),
     };
 
@@ -102,15 +98,21 @@ router.patch('/:id/status', async (req, res) => {
       update.rejectionReason = rejectionReason;
     }
 
-    const ot = await OvertimeRequest.findByIdAndUpdate(req.params.id, update, { new: true })
-      .populate('employeeId', 'firstName lastName userId')
-      .populate('approvedBy', 'firstName lastName');
+    const [updatedCount] = await OvertimeRequest.update(update, {
+      where: { _id: req.params.id, tenantId: req.tenantId }
+    });
 
-    if (!ot) return res.status(404).json({ error: 'Overtime request not found' });
+    if (updatedCount === 0) return res.status(404).json({ error: 'Overtime request not found' });
 
-    // Notify the employee about the decision
+    const ot = await OvertimeRequest.findByPk(req.params.id, {
+      include: [
+        { model: EmployeeProfile, attributes: ['firstName', 'lastName', 'userId'] },
+        { model: User, as: 'approver', attributes: ['email'] }
+      ]
+    });
+
     const statusLabel = status === 'approved' ? 'Approved' : 'Declined';
-    const empProfile = await EmployeeProfile.findById(ot.employeeId._id).lean();
+    const empProfile = await EmployeeProfile.findByPk(ot.employeeId);
     if (empProfile) {
       await createAndSendNotification({
         tenantId: req.tenantId,

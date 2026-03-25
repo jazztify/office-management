@@ -1,17 +1,56 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
-const holidaySchema = new mongoose.Schema({
-  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
-  name: { type: String, required: true },
-  date: { type: Date, required: true },
-  type: { type: String, enum: ['regular', 'special_non_working', 'company', 'optional'], default: 'regular' },
-  description: { type: String },
-  isPaidUnworked: { type: Boolean, default: true }, // Regular holidays are paid even if unworked
-  rateMultiplier: { type: Number, default: 2.0 }, // Double pay if worked on regular holiday
-  isRecurring: { type: Boolean, default: false },
-}, { timestamps: true });
+const Holiday = sequelize.define('Holiday', {
+  _id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  tenantId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'Tenants',
+      key: '_id',
+    },
+  },
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  date: {
+    type: DataTypes.DATEONLY,
+    allowNull: false,
+  },
+  type: {
+    type: DataTypes.ENUM('regular', 'special_non_working', 'company', 'optional'),
+    defaultValue: 'regular',
+  },
+  description: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  isPaidUnworked: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+  },
+  rateMultiplier: {
+    type: DataTypes.DECIMAL(3, 2),
+    defaultValue: 2.0,
+  },
+  isRecurring: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+}, {
+  timestamps: true,
+  indexes: [
+    {
+      unique: true,
+      fields: ['date', 'tenantId', 'name']
+    }
+  ]
+});
 
-// Prevent duplicate holidays on the same date within a tenant
-holidaySchema.index({ date: 1, tenantId: 1, name: 1 }, { unique: true });
-
-module.exports = mongoose.model('Holiday', holidaySchema);
+module.exports = Holiday;
