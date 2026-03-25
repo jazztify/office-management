@@ -13,8 +13,12 @@ api.interceptors.request.use((config) => {
   const urlToken = params.get('token');
   const urlSub = params.get('subdomain');
 
+  console.log(`[API Interceptor] URL Token: ${!!urlToken}, URL Sub: ${urlSub}`);
+
   const token = urlToken || localStorage.getItem('token');
   const tenantSubdomain = urlSub || localStorage.getItem('tenantSubdomain');
+
+  console.log(`[API Interceptor] Selected Token: ${token ? 'YES' : 'NO'}, Selected Tenant: ${tenantSubdomain}`);
 
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`;

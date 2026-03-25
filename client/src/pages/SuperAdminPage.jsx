@@ -355,11 +355,21 @@ export default function SuperAdminPage() {
                       <a 
                         href={(() => {
                           const token = localStorage.getItem('token');
-                          const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                          if (isLocal) {
-                            return `${window.location.protocol}//${window.location.host}/login?token=${token}&subdomain=${t.subdomain}`;
+                          const hostname = window.location.hostname;
+                          const protocol = window.location.protocol;
+                          const port = window.location.port ? `:${window.location.port}` : '';
+                          
+                          // Handle localhost development
+                          if (hostname.includes('localhost') || hostname === '127.0.0.1') {
+                            // If we're already on a subdomain (e.g. admin.localhost), keep the base 'localhost'
+                            const baseDomain = hostname.includes('.') ? hostname.split('.').slice(-1)[0] : hostname;
+                            return `${protocol}//${t.subdomain}.${baseDomain}${port}/login?token=${token}&subdomain=${t.subdomain}`;
                           }
-                          return `${window.location.protocol}//${t.subdomain}.${window.location.host.split('.').slice(-2).join('.')}?token=${token}&subdomain=${t.subdomain}`;
+                          
+                          // Handle production domains
+                          const parts = hostname.split('.');
+                          const baseDomain = parts.slice(-2).join('.');
+                          return `${protocol}//${t.subdomain}.${baseDomain}${port}/login?token=${token}&subdomain=${t.subdomain}`;
                         })()}
                         target="_blank"
                         rel="noopener noreferrer"
