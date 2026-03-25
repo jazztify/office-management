@@ -8,8 +8,13 @@ const api = axios.create({
 
 // Inject auth token and tenant context on every request
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  const tenantSubdomain = localStorage.getItem('tenantSubdomain');
+  // Prefer URL params (impersonation) over localStorage (session)
+  const params = new URLSearchParams(window.location.search);
+  const urlToken = params.get('token');
+  const urlSub = params.get('subdomain');
+
+  const token = urlToken || localStorage.getItem('token');
+  const tenantSubdomain = urlSub || localStorage.getItem('tenantSubdomain');
 
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`;
