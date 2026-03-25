@@ -195,10 +195,10 @@ const navigationConfig = [
     icon: '👑',
   },
   {
-    id: 'settings',
-    title: 'System Config',
-    route: '/settings',
-    requiredPermission: 'manage_settings',
+    id: 'system-settings',
+    title: 'Module Config',
+    route: '/system-settings',
+    requiredPermission: null,
     moduleId: 'administration',
     icon: '⚙️',
   },
@@ -213,7 +213,7 @@ export default function Sidebar() {
 
   const authorizedNavigation = useMemo(() => {
     return navigationConfig.filter((item) => {
-      if (isSystemOwner && !['settings', 'system-admin'].includes(item.id)) {
+      if (isSystemOwner && !['system-settings', 'system-admin'].includes(item.id)) {
         return false;
       }
       if (item.requiredPermission && !hasPermission(item.requiredPermission)) {
