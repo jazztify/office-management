@@ -64,6 +64,18 @@ async function initializeSystem() {
     });
     console.log(`✅ Tenant: ${tenant.name}`);
 
+    console.log('[3.1/5] Initializing "verify" demo workspace...');
+    const [verifyTenant] = await Tenant.findOrCreate({
+      where: { subdomain: 'verify' },
+      defaults: {
+        name: 'Demo Tenant',
+        subdomain: 'verify',
+        status: 'active',
+        activeModules: plans.find(p => p.tierName === 'enterprise_everything').activeModules,
+      }
+    });
+    console.log(`✅ Tenant: ${verifyTenant.name}`);
+
       // 4. Create Standard Departments
       console.log(`[4.1] Seeding Departments for ${tenant.name}...`);
       const defaultDepts = [

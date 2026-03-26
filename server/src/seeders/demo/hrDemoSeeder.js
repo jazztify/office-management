@@ -31,6 +31,7 @@ async function seedHR() {
     await Payslip.destroy({ where: { tenantId: tid } });
     await AttendanceLog.destroy({ where: { tenantId: tid } });
     await LeaveRequest.destroy({ where: { tenantId: tid } });
+    await HardwareToken.destroy({ where: { tenantId: tid } });
     await DeductionProfile.destroy({ where: { employeeId: { [sequelize.Sequelize.Op.in]: sequelize.literal(`(SELECT _id FROM "EmployeeProfiles" WHERE "tenantId" = '${tid}')`) } } });
     await EmployeeProfile.destroy({ where: { tenantId: tid } });
     await User.destroy({ where: { tenantId: tid } });

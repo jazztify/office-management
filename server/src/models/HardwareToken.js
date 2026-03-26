@@ -28,7 +28,6 @@ const HardwareToken = sequelize.define('HardwareToken', {
   tokenValue: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true, // e.g., RFID UID or NFC Serial
   },
   type: {
     type: DataTypes.ENUM('RFID', 'NFC', 'BIOMETRIC', 'OTHER'),
