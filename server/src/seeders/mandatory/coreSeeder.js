@@ -158,18 +158,21 @@ async function initializeSystem() {
 
     // 5. Create Root Admin User
     console.log('[5/5] Initializing Super Admin...');
-    const adminEmail = 'admin@system.com';
+    const adminEmail = process.env.INITIAL_ADMIN_EMAIL || 'admin@system.com';
+    const adminPass = process.env.INITIAL_ADMIN_PASSWORD || 'admin123';
+    
     const [user, userCreated] = await User.findOrCreate({
       where: { email: adminEmail, tenantId: tenant._id },
       defaults: {
         email: adminEmail,
-        passwordHash: hashPassword('admin123'),
+        passwordHash: hashPassword(adminPass),
         tenantId: tenant._id,
         isActive: true
       }
     });
 
     if (userCreated) {
+      console.log(`✅ Super Admin Created: ${adminEmail} / ${adminPass}`);
       const superAdminRole = seededRoles['Super Admin'];
       const managementDept = await Department.findOne({ where: { name: 'Management', tenantId: tenant._id } });
       const platformOwnerPos = await Position.findOne({ where: { name: 'Platform Owner', tenantId: tenant._id } });
